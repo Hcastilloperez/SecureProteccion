@@ -1,0 +1,693 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum RoleType {
+  ADMIN
+  OPERADOR_CENTRO
+  VIGILANTE
+  COORDINADOR_FISICA
+  COORDINADOR_ELECTRONICA
+  COORDINADOR_INVESTIGACIONES
+  COORDINADOR_ADMINISTRATIVO
+  COORDINADOR_ACCIONES_LOCALITATIVAS
+  ESCOLTA
+  GERENTE_SEGURIDAD
+}
+
+enum InstallationStatus {
+  ACTIVE
+  INACTIVE
+  IN_MAINTENANCE
+}
+
+enum EquipmentStatus {
+  ACTIVE
+  INACTIVE
+  IN_REPAIR
+  DECOMMISSIONED
+  STANDBY
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  ESCALATED
+  CLOSED
+  CANCELLED
+}
+
+enum IncidentPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MovementStatus {
+  SCHEDULED
+  STARTED
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum EscortAssignmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum EquipmentMovementStatus {
+  INSTALLED
+  MOVED
+  IN_STORAGE
+  IN_REPAIR
+  DECOMMISSIONED
+}
+
+enum SecurityStudyStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum SecurityPostStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String
+  name         String
+  lastName     String
+  phone        String?
+  role         RoleType
+  status       UserStatus @default(ACTIVE)
+  installationId String?
+  installation Installation? @relation(fields: [installationId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  incidents           Incident[]           @relation("IncidentAssigned")
+  incidentTimelines   IncidentTimeline[]
+  escortMovements     EscortMovement[]
+  securityGuards      SecurityGuard[]
+  createdEquipments   Equipment[]         @relation("EquipmentCreator")
+  createdContracts    InvestmentContract[]
+  equipmentMovements  EquipmentMovement[]
+  maintainedEquipments MaintenanceSchedule[]
+  auditLogs           AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  permissions Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Installation {
+  id           String            @id @default(uuid())
+  name         String
+  address      String
+  city         String
+  department   String
+  latitude     Float?
+  longitude    Float?
+  description  String?
+  status       InstallationStatus @default(ACTIVE)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  users              User[]
+  contacts           Contact[]
+  authorities        Authority[]
+  securitySystems    SecuritySystem[]
+  securityGuards     SecurityGuard[]
+  securityPosts      SecurityPost[]
+  incidents          Incident[]
+  escortRoutes       EscortRoute[]
+  securityStudies    SecurityStudy[]
+  aiConfigurations    AIConfiguration[]
+  equipments         Equipment[]
+  equipmentMovementsFrom EquipmentMovement[] @relation("EquipmentFromInstallation")
+  equipmentMovementsTo   EquipmentMovement[] @relation("EquipmentToInstallation")
+
+  @@map("installations")
+}
+
+model Contact {
+  id            String       @id @default(uuid())
+  installationId String
+  installation  Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  name          String
+  position      String
+  phone         String
+  email         String?
+  isEmergency   Boolean      @default(false)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("contacts")
+}
+
+model Authority {
+  id            String       @id @default(uuid())
+  installationId String
+  installation  Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  name          String
+  type          String
+  phone         String
+  address       String?
+  email         String?
+  latitude      Float?
+  longitude     Float?
+  distance      Float?
+  responseTime  String?
+  notes         String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("authorities")
+}
+
+model SecuritySystem {
+  id            String       @id @default(uuid())
+  installationId String
+  installation  Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  name          String
+  type          String
+  brand         String?
+  model         String?
+  serialNumber  String?
+  location      String?
+  description   String?
+  isActive      Boolean      @default(true)
+  installationDate DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  equipments       Equipment[]
+  maintenanceSchedules MaintenanceSchedule[]
+  equipmentMovementsFrom EquipmentMovement[] @relation("EquipmentFromSystem")
+  equipmentMovementsTo   EquipmentMovement[] @relation("EquipmentToSystem")
+
+  @@map("security_systems")
+}
+
+model EquipmentType {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  category    String   @default("GENERAL")
+  systemType  String   @default("GENERAL")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  equipments  Equipment[]
+
+  @@map("equipment_types")
+}
+
+model Equipment {
+  id                    String           @id @default(uuid())
+  investmentContractId  String?
+  investmentContract    InvestmentContract? @relation(fields: [investmentContractId], references: [id])
+  equipmentTypeId      String?
+  equipmentType         EquipmentType?  @relation(fields: [equipmentTypeId], references: [id])
+  name                  String
+  type                  String
+  brand                 String?
+  model                 String?
+  serialNumber          String?
+  status                EquipmentStatus   @default(STANDBY)
+  location              String?
+  latitude              Float?
+  longitude             Float?
+  ipAddress             String?
+  macAddress            String?
+  firmwareVersion       String?
+  lastMaintenance       DateTime?
+  expirationDate        DateTime?
+  notes                 String?
+  specifications        Json?
+  purchaseDate          DateTime?
+  deliveryDate          DateTime?
+  installationDate      DateTime?
+  installationId        String?
+  installation          Installation?     @relation(fields: [installationId], references: [id])
+  securitySystemId      String?
+  securitySystem        SecuritySystem?  @relation(fields: [securitySystemId], references: [id])
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  creatorId             String
+  creator               User             @relation("EquipmentCreator", fields: [creatorId], references: [id])
+
+  maintenanceSchedules  MaintenanceSchedule[]
+  movements             EquipmentMovement[]
+
+  @@map("equipments")
+}
+
+model MaintenanceSchedule {
+  id           String          @id @default(uuid())
+  equipmentId  String
+  equipment    Equipment        @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  securitySystemId String?
+  securitySystem SecuritySystem? @relation(fields: [securitySystemId], references: [id])
+  title        String
+  description  String?
+  type         String
+  frequency    String
+  status       MaintenanceStatus @default(SCHEDULED)
+  scheduledDate DateTime
+  completedDate DateTime?
+  cost         Float?
+  provider     String?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  technicianId String?
+  technician   User?           @relation(fields: [technicianId], references: [id])
+
+  @@map("maintenance_schedules")
+}
+
+model InvestmentContract {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  name            String
+  description     String?
+  provider        String?
+  contractNumber  String?
+  orderNumber     String?
+  investmentType  String    @default("PURCHASE")
+  totalAmount     Float?
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String    @default("ACTIVE")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  creatorId       String
+  creator         User      @relation(fields: [creatorId], references: [id])
+
+  equipments      Equipment[]
+
+  @@map("investment_contracts")
+}
+
+model EquipmentMovement {
+  id                String                  @id @default(uuid())
+  equipmentId       String
+  equipment         Equipment               @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  fromInstallationId String?
+  fromInstallation  Installation?           @relation("EquipmentFromInstallation", fields: [fromInstallationId], references: [id])
+  toInstallationId  String
+  toInstallation    Installation           @relation("EquipmentToInstallation", fields: [toInstallationId], references: [id])
+  fromSecuritySystemId String?
+  fromSecuritySystem SecuritySystem?        @relation("EquipmentFromSystem", fields: [fromSecuritySystemId], references: [id])
+  toSecuritySystemId String?
+  toSecuritySystem   SecuritySystem?        @relation("EquipmentToSystem", fields: [toSecuritySystemId], references: [id])
+  movementDate      DateTime
+  status            EquipmentMovementStatus @default(INSTALLED)
+  reason            String?
+  notes             String?
+  createdAt         DateTime                @default(now())
+  creatorId         String
+  creator           User                    @relation(fields: [creatorId], references: [id])
+
+  @@map("equipment_movements")
+}
+
+model Status {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  type        String
+  description String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  incidents Incident[]
+
+  @@map("statuses")
+}
+
+model IncidentType {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  category    String
+  coordinatorType RoleType?
+  slaHours    Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  incidents Incident[]
+
+  @@map("incident_types")
+}
+
+model Incident {
+  id              String           @id @default(uuid())
+  title           String
+  description     String
+  incidentTypeId  String
+  incidentType    IncidentType     @relation(fields: [incidentTypeId], references: [id])
+  installationId  String
+  installation    Installation     @relation(fields: [installationId], references: [id])
+  statusId        String
+  status          Status           @relation(fields: [statusId], references: [id])
+  priority        IncidentPriority @default(MEDIUM)
+  assignedToId    String?
+  assignedTo      User?            @relation("IncidentAssigned", fields: [assignedToId], references: [id])
+  reportedBy      String
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  finalReport     String?
+  closedAt        DateTime?
+  closedById      String?
+  aiAnalysis      String?
+  aiEmbedding     Unsupported("vector(1536)")?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  timelines       IncidentTimeline[]
+  attachments     IncidentAttachment[]
+  recommendations IncidentRecommendation[]
+
+  @@map("incidents")
+}
+
+model IncidentTimeline {
+  id          String   @id @default(uuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  comment     String
+  isInternal  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("incident_timelines")
+}
+
+model IncidentAttachment {
+  id          String   @id @default(uuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int?
+  mimeType    String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("incident_attachments")
+}
+
+model IncidentRecommendation {
+  id          String   @id @default(uuid())
+  incidentId  String?
+  incident    Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  installationId String?
+  recommendation String
+  confidence  Float?
+  reasoning   String?
+  source      String?
+  embedding   Unsupported("vector(1536)")?
+  createdAt   DateTime @default(now())
+
+  @@map("incident_recommendations")
+}
+
+model SecurityGuard {
+  id            String       @id @default(uuid())
+  installationId String
+  installation  Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id])
+  documentType  String
+  documentNumber String      @unique
+  name          String
+  lastName      String
+  phone         String
+  email         String?
+  position      String
+  securityPostId String?
+  securityPost SecurityPost? @relation(fields: [securityPostId], references: [id])
+  schedule      String?
+  isActive      Boolean      @default(true)
+  observations  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("security_guards")
+}
+
+model SecurityPost {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  schedule        String?
+  guardsRequired  Int      @default(1)
+  status          SecurityPostStatus @default(PENDING)
+  companyId       String
+  company         SecurityCompany @relation(fields: [companyId], references: [id])
+  installationId  String
+  installation    Installation @relation(fields: [installationId], references: [id])
+  startDate      DateTime?
+  endDate        DateTime?
+  isAdditional   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  guards          SecurityGuard[]
+
+  @@map("security_posts")
+}
+
+model SecurityCompany {
+  id                String   @id @default(uuid())
+  name              String
+  nit               String   @unique
+  legalRepresentative String?
+  contractNumber     String?
+  contractStartDate DateTime?
+  contractEndDate   DateTime?
+  contractAmount    Float?
+  phone             String?
+  email             String?
+  address           String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  posts             SecurityPost[]
+
+  @@map("security_companies")
+}
+
+model EscortAssignment {
+  id            String                @id @default(uuid())
+  escortId     String
+  escort       Escort                @relation(fields: [escortId], references: [id], onDelete: Cascade)
+  routeId      String?
+  route        EscortRoute?          @relation(fields: [routeId], references: [id])
+  officialName String
+  officialDocument String
+  officialPhone   String?
+  officialPosition String?
+  destination      String
+  startDate       DateTime
+  endDate         DateTime?
+  status          EscortAssignmentStatus @default(PENDING)
+  observations    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  movements      EscortMovement[]
+
+  @@map("escort_assignments")
+}
+
+model Escort {
+  id            String   @id @default(uuid())
+  documentType  String
+  documentNumber String  @unique
+  name          String
+  lastName      String
+  phone         String
+  email         String?
+  position      String
+  licenseType   String?
+  licenseNumber String?
+  isActive      Boolean  @default(true)
+  observations  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  routes        EscortRoute[]
+  movements     EscortMovement[]
+  assignments   EscortAssignment[]
+
+  @@map("escorts")
+}
+
+model EscortRoute {
+  id            String       @id @default(uuid())
+  escortId      String
+  escort        Escort       @relation(fields: [escortId], references: [id], onDelete: Cascade)
+  installationId String?
+  installation  Installation? @relation(fields: [installationId], references: [id])
+  name          String
+  description   String?
+  waypoints     Json?
+  distance      Float?
+  estimatedTime Int?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  movements     EscortMovement[]
+  assignments   EscortAssignment[]
+
+  @@map("escort_routes")
+}
+
+model EscortMovement {
+  id            String        @id @default(uuid())
+  assignmentId  String?
+  assignment    EscortAssignment? @relation(fields: [assignmentId], references: [id])
+  routeId      String
+  route        EscortRoute   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  escortId     String
+  escort       Escort        @relation(fields: [escortId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id])
+  date         DateTime      @db.Date
+  startTime    DateTime
+  endTime      DateTime?
+  startLatitude Float?
+  startLongitude Float?
+  endLatitude   Float?
+  endLongitude   Float?
+  status       MovementStatus @default(SCHEDULED)
+  observations String?
+  routeTrace   Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("escort_movements")
+}
+
+model AIConfiguration {
+  id            String       @id @default(uuid())
+  installationId String?
+  installation  Installation? @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  name          String
+  model         String       @default("llama3")
+  baseUrl       String       @default("http://localhost:11434")
+  temperature   Float        @default(0.7)
+  maxTokens     Int          @default(512)
+  systemPrompt  String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("ai_configurations")
+}
+
+model SecurityStudy {
+  id            String             @id @default(uuid())
+  installationId String
+  installation  Installation        @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  threatAnalysis String?
+  vulnerabilityAnalysis String?
+  recommendations String?
+  riskLevel     String?
+  status        SecurityStudyStatus @default(DRAFT)
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@map("security_studies")
+}
+
+model Configuration {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  type        String
+  description String?
+  isPublic    Boolean  @default(false)
+  category    String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("configurations")
+}

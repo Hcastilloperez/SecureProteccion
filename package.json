@@ -1,0 +1,22 @@
+{
+  "name": "soter-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "build": "pnpm --recursive build",
+    "dev:back": "pnpm --filter soterBack dev",
+    "dev:front": "pnpm --filter soterFront dev",
+    "db:migrate": "pnpm --filter soterBack db:migrate",
+    "db:seed": "pnpm --filter soterBack db:seed",
+    "db:push": "pnpm --filter soterBack db:push",
+    "db:studio": "pnpm --filter soterBack db:studio"
+  },
+  "packages": [
+    "soterBack",
+    "soterFront"
+  ],
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

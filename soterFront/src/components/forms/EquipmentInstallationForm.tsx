@@ -1,0 +1,324 @@
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Equipment, SecuritySystem, EquipmentType } from '@/types';
+import { Search, Monitor, Check, Wifi, Hash, Cpu } from 'lucide-react';
+import api from '@/config/axios';
+
+const equipmentAssignmentSchema = z.object({
+  securitySystemId: z.string().min(1, 'Seleccione un subsistema'),
+  location: z.string().min(1, 'La ubicación es requerida'),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
+  ipAddress: z.string().ip('Dirección IP inválida').optional().or(z.literal('')),
+  macAddress: z.string().regex(/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/, 'MAC inválida (formato: 00:00:00:00:00:00)').optional().or(z.literal('')),
+  firmwareVersion: z.string().max(50).optional(),
+  notes: z.string().max(500).optional(),
+});
+
+type EquipmentAssignmentFormData = z.infer<typeof equipmentAssignmentSchema>;
+
+interface EquipmentInstallationFormProps {
+  equipment: Equipment;
+  systems: SecuritySystem[];
+  equipmentTypes: EquipmentType[];
+  onSubmit: (data: EquipmentAssignmentFormData) => Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+export function EquipmentInstallationForm({
+  equipment,
+  systems,
+  equipmentTypes,
+  onSubmit,
+  onCancel,
+  isLoading,
+}: EquipmentInstallationFormProps) {
+  const form = useForm<EquipmentAssignmentFormData>({
+    resolver: zodResolver(equipmentAssignmentSchema),
+    defaultValues: {
+      securitySystemId: equipment.securitySystemId || '',
+      location: equipment.location || '',
+      latitude: equipment.latitude || undefined,
+      longitude: equipment.longitude || undefined,
+      ipAddress: equipment.ipAddress || '',
+      macAddress: equipment.macAddress || '',
+      firmwareVersion: equipment.firmwareVersion || '',
+      notes: equipment.notes || '',
+    },
+  });
+
+  const { register, handleSubmit, formState: { errors } } = form;
+
+  const equipmentType = equipment.equipmentTypeId
+    ? equipmentTypes.find(et => et.id === equipment.equipmentTypeId)
+    : equipmentTypes.find(et => et.systemType === equipment.type);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="p-4 bg-muted rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Monitor className="h-5 w-5 text-primary" />
+          <span className="font-medium">{equipment.name}</span>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <p>{equipmentType?.name || equipment.type} | {equipment.brand} {equipment.model}</p>
+          {equipment.serialNumber && <p>Serial: {equipment.serialNumber}</p>}
+        </div>
+      </div>
+
+      <div>
+        <Label>Subsistema de Seguridad *</Label>
+        <select
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          {...register('securitySystemId')}
+        >
+          <option value="">Seleccione un subsistema</option>
+          {systems.map((sys) => (
+            <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
+          ))}
+        </select>
+        {errors.securitySystemId && <p className="text-sm text-red-500">{errors.securitySystemId.message}</p>}
+      </div>
+
+      <div>
+        <Label>Ubicación en Instalación *</Label>
+        <Input {...register('location')} placeholder="Ej: Entrada Principal - Lado Derecho" />
+        {errors.location && <p className="text-sm text-red-500">{errors.location.message}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Latitud</Label>
+          <Input type="number" step="any" {...register('latitude')} placeholder="4.7110" />
+        </div>
+        <div>
+          <Label>Longitud</Label>
+          <Input type="number" step="any" {...register('longitude')} placeholder="-74.0721" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>
+            <span className="flex items-center gap-1">
+              <Wifi className="h-4 w-4" /> IP
+            </span>
+          </Label>
+          <Input {...register('ipAddress')} placeholder="192.168.1.100" />
+          {errors.ipAddress && <p className="text-sm text-red-500">{errors.ipAddress.message}</p>}
+        </div>
+        <div>
+          <Label>
+            <span className="flex items-center gap-1">
+              <Hash className="h-4 w-4" /> MAC
+            </span>
+          </Label>
+          <Input {...register('macAddress')} placeholder="00:00:00:00:00:00" />
+          {errors.macAddress && <p className="text-sm text-red-500">{errors.macAddress.message}</p>}
+        </div>
+      </div>
+
+      <div>
+        <Label>
+          <span className="flex items-center gap-1">
+            <Cpu className="h-4 w-4" /> Versión Firmware
+          </span>
+        </Label>
+        <Input {...register('firmwareVersion')} placeholder="Ej: v2.1.0" />
+      </div>
+
+      <div>
+        <Label>Notas de Instalación</Label>
+        <Textarea {...register('notes')} rows={3} placeholder="Notas sobre la instalación..." />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Guardando...' : 'Instalar Equipo'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+interface EquipmentSelectorFormProps {
+  systems: SecuritySystem[];
+  equipmentTypes: EquipmentType[];
+  onSubmit: (data: { equipmentId: string; securitySystemId: string }) => Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+export function EquipmentSelectorForm({
+  systems,
+  equipmentTypes,
+  onSubmit,
+  onCancel,
+  isLoading,
+}: EquipmentSelectorFormProps) {
+  const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>('');
+  const [selectedSystemId, setSelectedSystemId] = useState<string>('');
+  const [filterEquipmentType, setFilterEquipmentType] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
+
+  useEffect(() => {
+    fetchAvailableEquipment();
+  }, [filterEquipmentType]);
+
+  const fetchAvailableEquipment = async () => {
+    setIsLoadingEquipment(true);
+    try {
+      const params: any = { installationId: 'available' };
+      if (filterEquipmentType) params.equipmentTypeId = filterEquipmentType;
+      const response = await api.get('/electronic-security/equipments', { params });
+      if (response.data.success) {
+        setAvailableEquipment(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching available equipment:', error);
+    } finally {
+      setIsLoadingEquipment(false);
+    }
+  };
+
+  const filteredEquipment = availableEquipment.filter((eq) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      eq.name.toLowerCase().includes(query) ||
+      eq.type.toLowerCase().includes(query) ||
+      (eq.brand && eq.brand.toLowerCase().includes(query)) ||
+      (eq.model && eq.model.toLowerCase().includes(query)) ||
+      (eq.serialNumber && eq.serialNumber.toLowerCase().includes(query))
+    );
+  });
+
+  const selectedEquipment = availableEquipment.find((eq) => eq.id === selectedEquipmentId);
+
+  const handleSubmit = async () => {
+    if (!selectedEquipmentId || !selectedSystemId) {
+      alert('Seleccione un equipo y un subsistema');
+      return;
+    }
+    await onSubmit({
+      equipmentId: selectedEquipmentId,
+      securitySystemId: selectedSystemId,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Filtrar por Tipo de Equipo</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={filterEquipmentType}
+            onChange={(e) => setFilterEquipmentType(e.target.value)}
+          >
+            <option value="">Todos los tipos</option>
+            {equipmentTypes.filter(et => et.isActive).map((et) => (
+              <option key={et.id} value={et.id}>{et.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Buscar Equipo</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Nombre, marca, modelo, serial..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <Label>Equipo Disponible (Standby/Bodega)</Label>
+        <div className="border rounded-lg max-h-60 overflow-y-auto mt-1">
+          {isLoadingEquipment ? (
+            <div className="p-4 text-center text-muted-foreground">Cargando equipos...</div>
+          ) : filteredEquipment.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">
+              No hay equipos en standby. Cree equipos en el Inventario primero.
+            </div>
+          ) : (
+            filteredEquipment.map((eq) => (
+              <div
+                key={eq.id}
+                className={`p-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors ${
+                  selectedEquipmentId === eq.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
+                }`}
+                onClick={() => setSelectedEquipmentId(eq.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {selectedEquipmentId === eq.id && <Check className="h-4 w-4 text-primary" />}
+                    <Monitor className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{eq.name}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{eq.status}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 pl-6">
+                  {eq.brand && ` ${eq.brand}`}{eq.model && ` - ${eq.model}`}{eq.serialNumber && ` | S/N: ${eq.serialNumber}`}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {selectedEquipment && (
+        <div className="p-3 bg-muted rounded-lg">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-green-600" />
+            <span className="font-medium">Equipo Seleccionado:</span>
+          </div>
+          <p className="font-medium">{selectedEquipment.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {selectedEquipment.brand} {selectedEquipment.model} | {selectedEquipment.type}
+          </p>
+          {selectedEquipment.serialNumber && <p className="text-sm text-muted-foreground">Serial: {selectedEquipment.serialNumber}</p>}
+        </div>
+      )}
+
+      <div>
+        <Label>Subsistema de Seguridad *</Label>
+        <select
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={selectedSystemId}
+          onChange={(e) => setSelectedSystemId(e.target.value)}
+        >
+          <option value="">Seleccione un subsistema</option>
+          {systems.map((sys) => (
+            <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button onClick={handleSubmit} disabled={isLoading || !selectedEquipmentId || !selectedSystemId}>
+          Continuar con Instalación
+        </Button>
+      </div>
+    </div>
+  );
+}
