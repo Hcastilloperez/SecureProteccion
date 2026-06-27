@@ -22,16 +22,16 @@
 | Headers | 1 | 0 | 0 | 1 |
 | Validación | 3 | 3 | 0 | 0 |
 | Archivos | 1 | 1 | 0 | 0 |
-| Rate Limiting | 1 | 0 | 0 | 1 |
+| Rate Limiting | 1 | 1 | 0 | 0 |
 | Ollama/IA | 2 | 2 | 0 | 0 |
-| **TOTAL** | **28** | **24** | **0** | **4** |
+| **TOTAL** | **28** | **25** | **0** | **3** |
 
 ### 1.2 Hallazgos Principales
 
 | Severidad | Cantidad | Descripción |
 |----------|----------|-------------|
 | 🔴 ALTA | 0 | - |
-| 🟡 MEDIA | 2 | Validación XSS en backend, Rate limiting no visible |
+| 🟡 MEDIA | 1 | Validación XSS en backend (frontend sanitiza) |
 | 🟢 BAJA | 1 | Headers de seguridad no implementados en API |
 | 🔵 INFO | 5 | Modelos Ollama disponibles |
 
@@ -124,9 +124,9 @@
 
 | ID | Prueba | Resultado | Severidad | Notas |
 |----|--------|-----------|-----------|-------|
-| 9.1 | Brute force login | ⚠️ NO DETECTADO | MEDIA | No hay evidencia de rate limiting visible |
+| 9.1 | Brute force login | ✅ IMPLEMENTADO | - | 5 intentos maximos por 15 minutos, luego 429 |
 
-**Conclusión:** Se recomienda implementar rate limiting para prevenir brute force.
+**Conclusión:** Rate limiting implementado y funcionando. Después de 5 intentos fallidos de login, el 6to es bloqueado con código 429.
 
 ---
 
@@ -180,7 +180,7 @@ Ninguna vulnerabilidad crítica encontrada.
 | Vulnerabilidad | Prioridad | Esfuerzo | Estado |
 |---------------|-----------|----------|--------|
 | Sanitización XSS en backend | MEDIA | Bajo | Por implementar |
-| Rate limiting | MEDIA | Medio | Por implementar |
+| Rate limiting | MEDIA | Medio | ✅ Implementado |
 | Headers de seguridad | BAJA | Bajo | Por implementar |
 
 ---

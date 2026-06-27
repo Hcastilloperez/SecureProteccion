@@ -145,21 +145,39 @@ async function main() {
         },
     });
     console.log('AI configurations created');
-    console.log('Creating admin user...');
-    const adminPassword = await bcryptjs_1.default.hash('admin123', 12);
-    await prisma.user.upsert({
-        where: { email: 'admin@soter.com' },
-        update: {},
-        create: {
-            email: 'admin@soter.com',
-            password: adminPassword,
-            name: 'Administrador',
-            lastName: 'Sistema',
-            phone: '+57 300 000 0000',
-            role: 'ADMIN',
-        },
-    });
-    console.log('Admin user created (email: admin@soter.com, password: admin123)');
+    console.log('Creating test users for each role...');
+    const testUsers = [
+        { email: 'admin@soter.com', password: 'admin123', name: 'Administrador', lastName: 'Sistema', role: 'ADMIN' },
+        { email: 'operador@soter.com', password: 'operador123', name: 'Juan', lastName: 'Operador', role: 'OPERADOR_CENTRO' },
+        { email: 'coord.fisica@soter.com', password: 'coorfisica123', name: 'Carlos', lastName: 'Vigilancia', role: 'COORDINADOR_FISICA' },
+        { email: 'coord.electronica@soter.com', password: 'coorelectronica123', name: 'María', lastName: 'Electrónica', role: 'COORDINADOR_ELECTRONICA' },
+        { email: 'coord.investigaciones@soter.com', password: 'coorinvest123', name: 'Pedro', lastName: 'Investigaciones', role: 'COORDINADOR_INVESTIGACIONES' },
+        { email: 'coord.administrativo@soter.com', password: 'cooradmin123', name: 'Ana', lastName: 'Administrativo', role: 'COORDINADOR_ADMINISTRATIVO' },
+        { email: 'coord.locativas@soter.com', password: 'coorlocal123', name: 'Luis', lastName: 'Locativas', role: 'COORDINADOR_ACCIONES_LOCALITATIVAS' },
+        { email: 'gerente@soter.com', password: 'gerente123', name: 'Roberto', lastName: 'Gerente', role: 'GERENTE_SEGURIDAD' },
+        { email: 'escolta@soter.com', password: 'escolta123', name: 'Miguel', lastName: 'Escolta', role: 'ESCOLTA' },
+        { email: 'vigilante@soter.com', password: 'vigilante123', name: 'José', lastName: 'Vigilante', role: 'VIGILANTE' },
+    ];
+    for (const user of testUsers) {
+        const hashedPassword = await bcryptjs_1.default.hash(user.password, 12);
+        await prisma.user.upsert({
+            where: { email: user.email },
+            update: {},
+            create: {
+                email: user.email,
+                password: hashedPassword,
+                name: user.name,
+                lastName: user.lastName,
+                phone: '+57 300 000 0000',
+                role: user.role,
+            },
+        });
+    }
+    console.log('Test users created');
+    console.log('Test users:');
+    for (const user of testUsers) {
+        console.log(`  - ${user.email} / ${user.password} (${user.role})`);
+    }
     console.log('Creating sample installation...');
     await prisma.installation.upsert({
         where: { id: 'sample-installation' },
@@ -214,6 +232,70 @@ async function main() {
         });
     }
     console.log('Sample authorities created');
+    console.log('Creating equipment types...');
+    const equipmentTypes = [
+        // CCTV
+        { code: 'CAM-IP', name: 'Cámara IP', description: 'Cámara de vigilancia IP', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'CAM-ANALOG', name: 'Cámara Análoga', description: 'Cámara de vigilancia análoga', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'CAM-DOME', name: 'Cámara Domo', description: 'Cámara tipo domo para interiores', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'CAM-BULLET', name: 'Cámara Bullet', description: 'Cámara tipo bullet para exteriores', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'CAM-PTZ', name: 'Cámara PTZ', description: 'Cámara PTZ (Pan-Tilt-Zoom)', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'CAM-TERM', name: 'Cámara Térmica', description: 'Cámara con sensor térmico', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'NVR', name: 'NVR (Network Video Recorder)', description: 'Grabador de video en red', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'DVR', name: 'DVR (Digital Video Recorder)', description: 'Grabador de video digital', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'HDD-SURV', name: 'Disco Duro para Videovigilancia', description: 'Disco duro específico para CCTV', category: 'CCTV', systemType: 'CCTV' },
+        { code: 'SWITCH-POE', name: 'Switch PoE', description: 'Switch con Power over Ethernet', category: 'CCTV', systemType: 'NETWORK' },
+        // Control de Acceso
+        { code: 'LECTOR-BIO', name: 'Lector Biométrico', description: 'Lector de huella dactilar o facial', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'LECTOR-QR', name: 'Lector de Código QR', description: 'Lector de códigos QR', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'LECTOR-RFID', name: 'Lector RFID', description: 'Lector de tarjeta RFID', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'CERR-ELECT', name: 'Cerradura Eléctrica', description: 'Cerradura eléctrica para puertas', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'CONT-AC', name: 'Controlador de Acceso', description: 'Panel controlador de acceso', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'TARJ-RFID', name: 'Tarjeta RFID', description: 'Tarjeta de acceso RFID', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        { code: 'BTN-EXIT', name: 'Botón de Salida', description: 'Botón para salida sin llave', category: 'ACCESS_CONTROL', systemType: 'ACCESS_CONTROL' },
+        // Intrusión
+        { code: 'PANEL-ALARM', name: 'Panel de Alarmas', description: 'Panel principal del sistema de intrusión', category: 'INTRUSION', systemType: 'INTRUSION' },
+        { code: 'SENSOR-MOV', name: 'Sensor de Movimiento', description: 'Sensor PIR de movimiento', category: 'INTRUSION', systemType: 'INTRUSION' },
+        { code: 'SENSOR-PUERT', name: 'Sensor de Puerta/Ventana', description: 'Sensor magnético para puertas/ventanas', category: 'INTRUSION', systemType: 'INTRUSION' },
+        { code: 'SENSOR-VID', name: 'Sensor de Vibración', description: 'Sensor de rotura de vidrio', category: 'INTRUSION', systemType: 'INTRUSION' },
+        { code: 'TECL-ALARM', name: 'Teclado de Alarmas', description: 'Teclado para control de panel', category: 'INTRUSION', systemType: 'INTRUSION' },
+        { code: 'SIRENA', name: 'Sirena', description: 'Sirena interior/exterior', category: 'INTRUSION', systemType: 'INTRUSION' },
+        // Detección de Incendio
+        { code: 'DETECTOR-FUM', name: 'Detector de Humo', description: 'Detector de humo photoeléctrico', category: 'FIRE', systemType: 'FIRE_DETECTION' },
+        { code: 'DETECTOR-TEMP', name: 'Detector de Temperatura', description: 'Detector de calor fijo o rate-of-rise', category: 'FIRE', systemType: 'FIRE_DETECTION' },
+        { code: 'PANEL-FIRE', name: 'Panel de Detección de Incendio', description: 'Panel central del sistema contra incendios', category: 'FIRE', systemType: 'FIRE_DETECTION' },
+        { code: 'EST-FIRE', name: 'Estación Manual de Incendio', description: 'Pulso manual de alarma', category: 'FIRE', systemType: 'FIRE_DETECTION' },
+        { code: 'LUZ-EMERG', name: 'Luz de Emergencia', description: 'Luz de evacuación de emergencia', category: 'FIRE', systemType: 'FIRE_DETECTION' },
+        // Redes y Conectividad
+        { code: 'ROUTER', name: 'Router', description: 'Router de red', category: 'NETWORK', systemType: 'NETWORK' },
+        { code: 'SWITCH', name: 'Switch de Red', description: 'Switch gestionable', category: 'NETWORK', systemType: 'NETWORK' },
+        { code: 'AP-WIFI', name: 'Access Point WiFi', description: 'Punto de acceso wireless', category: 'NETWORK', systemType: 'NETWORK' },
+        { code: 'UPS', name: 'UPS', description: 'Sistema de alimentación ininterrumpida', category: 'NETWORK', systemType: 'NETWORK' },
+        { code: 'Fibra-OPT', name: 'Cable de Fibra Óptica', description: 'Cable de fibra óptica', category: 'NETWORK', systemType: 'NETWORK' },
+        // Intercomunicación
+        { code: 'VIDEO-POR', name: 'Videoportero', description: 'Sistema de videoportero', category: 'INTERCOM', systemType: 'INTERCOM' },
+        { code: 'AUDIO-POR', name: 'Portero Eléctrico', description: 'Sistema de audio portero', category: 'INTERCOM', systemType: 'INTERCOM' },
+        { code: 'INTERCOM', name: 'Intercomunicador', description: 'Sistema de intercomunicación interno', category: 'INTERCOM', systemType: 'INTERCOM' },
+        // Perímetro
+        { code: 'CERCO-ELEC', name: 'Cerco Eléctrico', description: 'Sistema de cerco eléctrico', category: 'PERIMETER', systemType: 'PERIMETER' },
+        { code: 'SENSOR-CERCO', name: 'Sensor de Cerca', description: 'Sensor de vibración para cerca perimetral', category: 'PERIMETER', systemType: 'PERIMETER' },
+        { code: 'CAM-LPR', name: 'Cámara LPR', description: 'Cámara de reconocimiento de placas', category: 'PERIMETER', systemType: 'PERIMETER' },
+        // Analítica de Video
+        { code: 'AI-VIDEO', name: 'Servidor de Analítica de Video', description: 'Software de analítica de video con IA', category: 'VIDEO_ANALYTICS', systemType: 'VIDEO_ANALYTICS' },
+        { code: 'VIDEO-WALL', name: 'Video Wall', description: 'Matriz de monitores para videowall', category: 'VIDEO_ANALYTICS', systemType: 'VIDEO_ANALYTICS' },
+        // General/Otro
+        { code: 'GABINETE', name: 'Gabinete/Rack', description: 'Gabinete para equipos electrónicos', category: 'GENERAL', systemType: 'GENERAL' },
+        { code: 'FUENTE-POD', name: 'Fuente de Poder', description: 'Fuente de alimentación', category: 'GENERAL', systemType: 'GENERAL' },
+        { code: 'CABLEADO', name: 'Cableado Estructurado', description: 'Cable de red UTP categoría', category: 'GENERAL', systemType: 'GENERAL' },
+    ];
+    for (const eqType of equipmentTypes) {
+        await prisma.equipmentType.upsert({
+            where: { code: eqType.code },
+            update: {},
+            create: eqType,
+        });
+    }
+    console.log('Equipment types created');
     console.log('Seed completed successfully!');
 }
 main()

@@ -10,19 +10,20 @@ import aiRoutes from './ai.routes';
 import adminRoutes from './admin.routes';
 import uploadRoutes from './upload.routes';
 import inventoryRoutes from './inventory.routes';
+import { apiRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/', uploadRoutes);
-router.use('/incidents', incidentRoutes);
-router.use('/installations', installationRoutes);
-router.use('/users', userRoutes);
-router.use('/electronic-security', electronicSecurityRoutes);
-router.use('/escorts', escortRoutes);
-router.use('/physical-security', physicalSecurityRoutes);
+router.use('/incidents', apiRateLimiter, incidentRoutes);
+router.use('/installations', apiRateLimiter, installationRoutes);
+router.use('/users', apiRateLimiter, userRoutes);
+router.use('/electronic-security', apiRateLimiter, electronicSecurityRoutes);
+router.use('/escorts', apiRateLimiter, escortRoutes);
+router.use('/physical-security', apiRateLimiter, physicalSecurityRoutes);
 router.use('/ai', aiRoutes);
-router.use('/admin', adminRoutes);
-router.use('/inventory', inventoryRoutes);
+router.use('/admin', apiRateLimiter, adminRoutes);
+router.use('/inventory', apiRateLimiter, inventoryRoutes);
 
 export default router;

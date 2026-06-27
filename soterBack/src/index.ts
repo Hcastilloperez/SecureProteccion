@@ -3,10 +3,12 @@ import cors from 'cors';
 import { config } from './config';
 import routes from './routes';
 import prisma from './config/database';
+import { securityHeaders } from './middleware/securityHeaders';
 
 const app = express();
 
 app.use(cors());
+app.use(securityHeaders);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

@@ -13,11 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { installationService } from '@/services/installation.service';
 import { contactService } from '@/services/contact.service';
 import { authorityService } from '@/services/authority.service';
-import { securityGuardService } from '@/services/security-guard.service';
 import { securityStudyService } from '@/services/security-study.service';
 import { adminService } from '@/services/admin.service';
-import { Installation, Contact, Authority, SecurityGuard, SecurityStudy, EquipmentType, Equipment } from '@/types';
-import { ContactFormData, AuthorityFormData, securityGuardSchema, SecurityGuardFormData, securityStudySchema, SecurityStudyFormData, securitySystemSchema, maintenanceSchema, SecuritySystemFormData, MaintenanceFormData } from '@/lib/schemas';
+import { Installation, Contact, Authority, SecurityStudy, EquipmentType, Equipment } from '@/types';
+import { ContactFormData, AuthorityFormData, securityStudySchema, SecurityStudyFormData, securitySystemSchema, maintenanceSchema, SecuritySystemFormData, MaintenanceFormData } from '@/lib/schemas';
 import { ContactForm } from '@/components/forms/ContactForm';
 import { AuthorityForm } from '@/components/forms/AuthorityForm';
 import { EquipmentInstallationForm, EquipmentSelectorForm } from '@/components/forms/EquipmentInstallationForm';
@@ -50,13 +49,39 @@ interface MaintenanceSchedule {
   securitySystem?: { id: string; name: string };
 }
 
+interface SecurityPostGuard {
+  id: string;
+  documentType: string;
+  documentNumber: string;
+  name: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  position: string;
+  schedule?: string;
+  isActive: boolean;
+}
+
+interface SecurityPost {
+  id: string;
+  name: string;
+  description?: string;
+  schedule?: string;
+  guardsRequired: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
+  isAdditional: boolean;
+  startDate?: string;
+  endDate?: string;
+  company: { id: string; name: string };
+  guards: SecurityPostGuard[];
+}
+
 export default function InstallationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [installation, setInstallation] = useState<Installation | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [authorities, setAuthorities] = useState<Authority[]>([]);
-  const [securityGuards, setSecurityGuards] = useState<SecurityGuard[]>([]);
   const [securityStudies, setSecurityStudies] = useState<SecurityStudy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabValue>('contacts');
@@ -65,6 +90,7 @@ export default function InstallationDetailPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [maintenances, setMaintenances] = useState<MaintenanceSchedule[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [securityPosts, setSecurityPosts] = useState<SecurityPost[]>([]);
   const [electronicDialogOpen, setElectronicDialogOpen] = useState(false);
   const [electronicDialogType, setElectronicDialogType] = useState<'system' | 'equipment' | 'maintenance'>('system');
   const [editingElectronic, setEditingElectronic] = useState<any>(null);
@@ -76,10 +102,6 @@ export default function InstallationDetailPage() {
   const [authorityDialogOpen, setAuthorityDialogOpen] = useState(false);
   const [editingAuthority, setEditingAuthority] = useState<Authority | null>(null);
   const [isAuthoritySubmitting, setIsAuthoritySubmitting] = useState(false);
-
-  const [guardDialogOpen, setGuardDialogOpen] = useState(false);
-  const [editingGuard, setEditingGuard] = useState<SecurityGuard | null>(null);
-  const [isGuardSubmitting, setIsGuardSubmitting] = useState(false);
 
   const [studyDialogOpen, setStudyDialogOpen] = useState(false);
   const [editingStudy, setEditingStudy] = useState<SecurityStudy | null>(null);
@@ -96,11 +118,11 @@ export default function InstallationDetailPage() {
   const fetchInstallation = async () => {
     try {
       setIsLoading(true);
-      const [instRes, contactsRes, authoritiesRes, guardsRes, studiesRes, systemsRes, equipmentRes, maintenanceRes, equipmentTypesRes] = await Promise.all([
+      const [instRes, contactsRes, authoritiesRes, postsRes, studiesRes, systemsRes, equipmentRes, maintenanceRes, equipmentTypesRes] = await Promise.all([
         installationService.getById(id!),
         contactService.getAll(id!),
         authorityService.getAll(id!),
-        securityGuardService.getAll(id!),
+        api.get('/physical-security/posts', { params: { installationId: id } }),
         securityStudyService.getAll(id!),
         api.get('/electronic-security/systems', { params: { installationId: id } }),
         api.get('/electronic-security/equipments', { params: { installationId: id } }),
@@ -111,7 +133,7 @@ export default function InstallationDetailPage() {
         setInstallation(instRes.data);
         setContacts(contactsRes.data || []);
         setAuthorities(authoritiesRes.data || []);
-        setSecurityGuards(guardsRes.data || []);
+        if (postsRes.data.success) setSecurityPosts(postsRes.data.data || []);
         setSecurityStudies(studiesRes.data || []);
         if (systemsRes.data.success) setSystems(systemsRes.data.data);
         if (equipmentRes.data.success) setEquipments(equipmentRes.data.data);
@@ -182,36 +204,6 @@ export default function InstallationDetailPage() {
       setAuthorities(res.data || []);
     } catch (error) {
       console.error('Error deleting authority:', error);
-    }
-  };
-
-  const handleSaveGuard = async (data: SecurityGuardFormData) => {
-    try {
-      setIsGuardSubmitting(true);
-      if (editingGuard) {
-        await securityGuardService.update(id!, editingGuard.id, data);
-      } else {
-        await securityGuardService.create(id!, data);
-      }
-      setGuardDialogOpen(false);
-      setEditingGuard(null);
-      const res = await securityGuardService.getAll(id!);
-      setSecurityGuards(res.data || []);
-    } catch (error) {
-      console.error('Error saving guard:', error);
-    } finally {
-      setIsGuardSubmitting(false);
-    }
-  };
-
-  const handleDeleteGuard = async (guardId: string) => {
-    if (!confirm('¿Está seguro de eliminar este vigilante?')) return;
-    try {
-      await securityGuardService.delete(id!, guardId);
-      const res = await securityGuardService.getAll(id!);
-      setSecurityGuards(res.data || []);
-    } catch (error) {
-      console.error('Error deleting guard:', error);
     }
   };
 
@@ -429,7 +421,7 @@ export default function InstallationDetailPage() {
         <TabsList>
           <TabsTrigger value="contacts">Contactos ({contacts.length})</TabsTrigger>
           <TabsTrigger value="authorities">Autoridades ({authorities.length})</TabsTrigger>
-          <TabsTrigger value="guards">Vigilantes ({securityGuards.length})</TabsTrigger>
+          <TabsTrigger value="guards">Vigilantes ({securityPosts.reduce((sum, p) => sum + p.guards.length, 0)})</TabsTrigger>
           <TabsTrigger value="electronic">Seg. Electrónica ({systems.length})</TabsTrigger>
           <TabsTrigger value="studies">Estudios ({securityStudies.length})</TabsTrigger>
         </TabsList>
@@ -544,51 +536,57 @@ export default function InstallationDetailPage() {
         </TabsContent>
 
         <TabsContent value="guards" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => { setEditingGuard(null); setGuardDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Vigilante
-            </Button>
-          </div>
-          {securityGuards.length === 0 ? (
+          {securityPosts.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">No hay vigilantes registrados</p>
+                <p className="text-muted-foreground">No hay puestos de vigilancia registrados</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {securityGuards.map((guard) => (
-                <Card key={guard.id}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-start justify-between">
+            <>
+              {securityPosts.map((post) => (
+                <Card key={post.id} className="mb-4">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-full">
-                          <ShieldCheck className="h-5 w-5 text-blue-600" />
+                        <div className={`p-2 rounded-lg ${post.status === 'ACTIVE' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                          <MapPin className={`h-5 w-5 ${post.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-500'}`} />
                         </div>
                         <div>
-                          <h4 className="font-medium">{guard.name} {guard.lastName}</h4>
-                          <p className="text-sm text-muted-foreground">{guard.position}</p>
-                          <p className="text-xs text-muted-foreground">{guard.company}</p>
+                          <CardTitle className="text-base">{post.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{post.company.name}</p>
                         </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingGuard(guard); setGuardDialogOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteGuard(guard.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <Badge variant={post.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                        {post.status === 'ACTIVE' ? 'Activo' : post.status === 'INACTIVE' ? 'Inactivo' : post.status === 'SUSPENDED' ? 'Suspendido' : 'Pendiente'}
+                      </Badge>
+                    </div>
+                    {post.schedule && <p className="text-sm text-muted-foreground mt-2">Horario: {post.schedule}</p>}
+                  </CardHeader>
+                  <CardContent>
+                    {post.guards.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Sin vigilantes asignados</p>
+                    ) : (
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {post.guards.map((guard) => (
+                          <div key={guard.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                            <div className="p-2 bg-blue-100 rounded-full">
+                              <ShieldCheck className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{guard.name} {guard.lastName}</p>
+                              <p className="text-sm text-muted-foreground truncate">{guard.position}</p>
+                              <p className="text-xs text-muted-foreground">Tel: {guard.phone}</p>
+                              {guard.schedule && <p className="text-xs text-muted-foreground">Horario: {guard.schedule}</p>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="mt-2 text-sm">
-                      <p>Tel: {guard.phone}</p>
-                      {guard.schedule && <p>Horario: {guard.schedule}</p>}
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </>
           )}
         </TabsContent>
 
@@ -935,20 +933,6 @@ export default function InstallationDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={guardDialogOpen} onOpenChange={setGuardDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingGuard ? 'Editar' : 'Nuevo'} Vigilante</DialogTitle>
-          </DialogHeader>
-          <SecurityGuardForm
-            defaultValues={editingGuard as Partial<SecurityGuardFormData> | undefined}
-            onSubmit={handleSaveGuard}
-            onCancel={() => setGuardDialogOpen(false)}
-            isLoading={isGuardSubmitting}
-          />
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={electronicDialogOpen} onOpenChange={setElectronicDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1005,102 +989,6 @@ export default function InstallationDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function SecurityGuardForm({
-  defaultValues,
-  onSubmit,
-  onCancel,
-  isLoading,
-}: {
-  defaultValues?: Partial<SecurityGuardFormData>;
-  onSubmit: (data: SecurityGuardFormData) => Promise<void>;
-  onCancel: () => void;
-  isLoading?: boolean;
-}) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecurityGuardFormData>({
-    resolver: zodResolver(securityGuardSchema),
-    defaultValues: {
-      documentType: 'CC',
-      documentNumber: '',
-      name: '',
-      lastName: '',
-      phone: '',
-      email: '',
-      position: '',
-      companyId: '',
-      securityPostId: '',
-      schedule: '',
-      isActive: true,
-      installationId: '',
-      observations: '',
-      ...defaultValues,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium">Tipo Documento *</label>
-          <select {...register('documentType')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm">
-            <option value="CC">Cédula</option>
-            <option value="CE">Cédula Extranjería</option>
-            <option value="PP">Pasaporte</option>
-            <option value="NIT">NIT</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-sm font-medium">Número Documento *</label>
-          <input {...register('documentNumber')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-          {errors.documentNumber && <p className="text-xs text-red-500 mt-1">{errors.documentNumber.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium">Nombre *</label>
-          <input {...register('name')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-          {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
-        </div>
-        <div>
-          <label className="text-sm font-medium">Apellido *</label>
-          <input {...register('lastName')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-          {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium">Teléfono *</label>
-          <input {...register('phone')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-          {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
-        </div>
-        <div>
-          <label className="text-sm font-medium">Email</label>
-          <input type="email" {...register('email')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-          {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
-        </div>
-      </div>
-      <div>
-        <label className="text-sm font-medium">Cargo *</label>
-        <input {...register('position')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-        {errors.position && <p className="text-xs text-red-500 mt-1">{errors.position.message}</p>}
-      </div>
-      <div>
-        <label className="text-sm font-medium">Horario</label>
-        <input {...register('schedule')} placeholder="Ej: 8x8" className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Observaciones</label>
-        <textarea {...register('observations')} rows={2} className="w-full rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Guardando...' : defaultValues?.name ? 'Actualizar' : 'Agregar'}
-        </Button>
-      </div>
-    </form>
   );
 }
 

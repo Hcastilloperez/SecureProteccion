@@ -155,6 +155,10 @@
 - [x] Horarios y turnos
 - [x] Estadísticas por empresa
 
+Este modulo hace falta la integracion con instalacion
+
+
+
 ### 8. Módulo de Escoltas y Movilidad ✅
 
 - [x] CRUD de Escoltas
