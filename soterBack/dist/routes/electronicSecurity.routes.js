@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const ElectronicSecurityController_1 = require("../controllers/ElectronicSecurityController");
+const verify_1 = require("../middleware/verify");
+const router = (0, express_1.Router)();
+router.use(verify_1.verifyToken);
+router.get('/systems', (req, res) => ElectronicSecurityController_1.electronicSecurityController.getSystems(req, res));
+router.post('/systems', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.createSystem(req, res));
+router.put('/systems/:id', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.updateSystem(req, res));
+router.delete('/systems/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.deleteSystem(req, res));
+router.get('/equipments', (req, res) => ElectronicSecurityController_1.electronicSecurityController.getEquipments(req, res));
+router.post('/equipments', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.createEquipment(req, res));
+router.post('/equipments/assign', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.assignEquipment(req, res));
+router.put('/equipments/:id', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.updateEquipment(req, res));
+router.delete('/equipments/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.deleteEquipment(req, res));
+router.get('/maintenance', (req, res) => ElectronicSecurityController_1.electronicSecurityController.getMaintenanceSchedules(req, res));
+router.post('/maintenance', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.createMaintenanceSchedule(req, res));
+router.put('/maintenance/:id', (0, verify_1.requireRole)('ADMIN', 'COORDINADOR_ELECTRONICA', 'GERENTE_SEGURIDAD'), (req, res) => ElectronicSecurityController_1.electronicSecurityController.updateMaintenanceSchedule(req, res));
+router.get('/stats', (req, res) => ElectronicSecurityController_1.electronicSecurityController.getInventoryStats(req, res));
+exports.default = router;
+//# sourceMappingURL=electronicSecurity.routes.js.map

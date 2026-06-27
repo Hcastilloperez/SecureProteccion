@@ -1,0 +1,32 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_routes_1 = __importDefault(require("./auth.routes"));
+const incident_routes_1 = __importDefault(require("./incident.routes"));
+const installation_routes_1 = __importDefault(require("./installation.routes"));
+const user_routes_1 = __importDefault(require("./user.routes"));
+const electronicSecurity_routes_1 = __importDefault(require("./electronicSecurity.routes"));
+const escort_routes_1 = __importDefault(require("./escort.routes"));
+const physicalSecurity_routes_1 = __importDefault(require("./physicalSecurity.routes"));
+const ai_routes_1 = __importDefault(require("./ai.routes"));
+const admin_routes_1 = __importDefault(require("./admin.routes"));
+const upload_routes_1 = __importDefault(require("./upload.routes"));
+const inventory_routes_1 = __importDefault(require("./inventory.routes"));
+const rateLimit_1 = require("../middleware/rateLimit");
+const router = (0, express_1.Router)();
+router.use('/auth', auth_routes_1.default);
+router.use('/', upload_routes_1.default);
+router.use('/incidents', rateLimit_1.apiRateLimiter, incident_routes_1.default);
+router.use('/installations', rateLimit_1.apiRateLimiter, installation_routes_1.default);
+router.use('/users', rateLimit_1.apiRateLimiter, user_routes_1.default);
+router.use('/electronic-security', rateLimit_1.apiRateLimiter, electronicSecurity_routes_1.default);
+router.use('/escorts', rateLimit_1.apiRateLimiter, escort_routes_1.default);
+router.use('/physical-security', rateLimit_1.apiRateLimiter, physicalSecurity_routes_1.default);
+router.use('/ai', ai_routes_1.default);
+router.use('/admin', rateLimit_1.apiRateLimiter, admin_routes_1.default);
+router.use('/inventory', rateLimit_1.apiRateLimiter, inventory_routes_1.default);
+exports.default = router;
+//# sourceMappingURL=index.js.map

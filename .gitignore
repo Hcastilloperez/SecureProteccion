@@ -89,7 +89,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist  # Incluido en repositorio para deployment
 
 # Gatsby files
 .cache/

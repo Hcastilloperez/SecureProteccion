@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const PhysicalSecurityController_1 = require("../controllers/PhysicalSecurityController");
+const verify_1 = require("../middleware/verify");
+const router = (0, express_1.Router)();
+router.use(verify_1.verifyToken);
+router.get('/guards', (req, res) => PhysicalSecurityController_1.physicalSecurityController.getSecurityGuards(req, res));
+router.post('/guards', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.createSecurityGuard(req, res));
+router.put('/guards/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.updateSecurityGuard(req, res));
+router.delete('/guards/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.deleteSecurityGuard(req, res));
+router.get('/stats', (req, res) => PhysicalSecurityController_1.physicalSecurityController.getPhysicalSecurityStats(req, res));
+router.get('/companies', (req, res) => PhysicalSecurityController_1.physicalSecurityController.getCompanies(req, res));
+router.post('/companies', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.createCompany(req, res));
+router.put('/companies/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.updateCompany(req, res));
+router.delete('/companies/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.deleteCompany(req, res));
+router.get('/posts', (req, res) => PhysicalSecurityController_1.physicalSecurityController.getPosts(req, res));
+router.post('/posts', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.createPost(req, res));
+router.put('/posts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.updatePost(req, res));
+router.delete('/posts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => PhysicalSecurityController_1.physicalSecurityController.deletePost(req, res));
+exports.default = router;
+//# sourceMappingURL=physicalSecurity.routes.js.map

@@ -1,0 +1,20 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const AIController_1 = require("../controllers/AIController");
+const verify_1 = require("../middleware/verify");
+const rateLimit_1 = require("../middleware/rateLimit");
+const router = (0, express_1.Router)();
+router.use(verify_1.verifyToken);
+router.get('/recommendations', (req, res) => AIController_1.aiController.getRecommendations(req, res));
+router.post('/analyze', rateLimit_1.aiRateLimiter, (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA', 'COORDINADOR_ELECTRONICA', 'COORDINADOR_INVESTIGACIONES'), (req, res) => AIController_1.aiController.analyzeIncident(req, res));
+router.post('/security-study', rateLimit_1.aiRateLimiter, (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_FISICA', 'COORDINADOR_ELECTRONICA', 'COORDINADOR_INVESTIGACIONES'), (req, res) => AIController_1.aiController.analyzeSecurityStudy(req, res));
+router.get('/configurations', (req, res) => AIController_1.aiController.getConfigurations(req, res));
+router.post('/configurations', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => AIController_1.aiController.createConfiguration(req, res));
+router.put('/configurations/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => AIController_1.aiController.updateConfiguration(req, res));
+router.post('/configurations/:id/test', rateLimit_1.aiRateLimiter, (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => AIController_1.aiController.testConfiguration(req, res));
+router.get('/models', (req, res) => AIController_1.aiController.getAvailableModels(req, res));
+router.post('/set-default-model', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => AIController_1.aiController.setDefaultModel(req, res));
+router.get('/default-config', (req, res) => AIController_1.aiController.getDefaultConfig(req, res));
+exports.default = router;
+//# sourceMappingURL=ai.routes.js.map

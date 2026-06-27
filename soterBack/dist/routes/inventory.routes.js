@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const InventoryController_1 = require("../controllers/InventoryController");
+const verify_1 = require("../middleware/verify");
+const router = (0, express_1.Router)();
+router.use(verify_1.verifyToken);
+router.get('/contracts', (req, res) => InventoryController_1.inventoryController.getContracts(req, res));
+router.post('/contracts', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => InventoryController_1.inventoryController.createContract(req, res));
+router.put('/contracts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => InventoryController_1.inventoryController.updateContract(req, res));
+router.delete('/contracts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => InventoryController_1.inventoryController.deleteContract(req, res));
+router.get('/equipments', (req, res) => InventoryController_1.inventoryController.getEquipments(req, res));
+router.post('/equipments', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => InventoryController_1.inventoryController.createEquipment(req, res));
+router.put('/equipments/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => InventoryController_1.inventoryController.updateEquipment(req, res));
+router.delete('/equipments/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => InventoryController_1.inventoryController.deleteEquipment(req, res));
+router.get('/movements', (req, res) => InventoryController_1.inventoryController.getMovements(req, res));
+router.post('/movements', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'COORDINADOR_ELECTRONICA'), (req, res) => InventoryController_1.inventoryController.createMovement(req, res));
+router.delete('/movements/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => InventoryController_1.inventoryController.deleteMovement(req, res));
+router.get('/stats', (req, res) => InventoryController_1.inventoryController.getStats(req, res));
+exports.default = router;
+//# sourceMappingURL=inventory.routes.js.map

@@ -1,0 +1,23 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const EscortController_1 = require("../controllers/EscortController");
+const verify_1 = require("../middleware/verify");
+const router = (0, express_1.Router)();
+router.use(verify_1.verifyToken);
+router.get('/escorts', (req, res) => EscortController_1.escortController.getAll(req, res));
+router.post('/escorts', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => EscortController_1.escortController.create(req, res));
+router.put('/escorts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => EscortController_1.escortController.update(req, res));
+router.delete('/escorts/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => EscortController_1.escortController.delete(req, res));
+router.get('/routes', (req, res) => EscortController_1.escortController.getRoutes(req, res));
+router.post('/routes', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'ESCOLTA'), (req, res) => EscortController_1.escortController.createRoute(req, res));
+router.put('/routes/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'ESCOLTA'), (req, res) => EscortController_1.escortController.updateRoute(req, res));
+router.get('/movements', (req, res) => EscortController_1.escortController.getMovements(req, res));
+router.post('/movements', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'ESCOLTA'), (req, res) => EscortController_1.escortController.createMovement(req, res));
+router.put('/movements/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD', 'ESCOLTA'), (req, res) => EscortController_1.escortController.updateMovement(req, res));
+router.get('/movements/today', (req, res) => EscortController_1.escortController.getTodayMovements(req, res));
+router.get('/assignments', (req, res) => EscortController_1.escortController.getAssignments(req, res));
+router.post('/assignments', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => EscortController_1.escortController.createAssignment(req, res));
+router.put('/assignments/:id', (0, verify_1.requireRole)('ADMIN', 'GERENTE_SEGURIDAD'), (req, res) => EscortController_1.escortController.updateAssignment(req, res));
+exports.default = router;
+//# sourceMappingURL=escort.routes.js.map

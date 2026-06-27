@@ -79,10 +79,10 @@ apt install -y curl wget git unzip software-properties-common
 ### 3.2 Crear Usuario para Deployment
 
 ```bash
-adduser deploy
-usermod -aG sudo deploy
-mkdir -p /home/deploy/.ssh
-chmod 700 /home/deploy/.ssh
+```bash
+mkdir -p /var/www/soter
+useradd -m -s /bin/bash athena
+chown -R athena:athena /var/www/soter
 ```
 
 ---
@@ -193,11 +193,15 @@ After=network.target
 
 [Service]
 Type=simple
-User=deploy
-WorkingDirectory=/home/deploy/SecureProteccion/soterBack
-ExecStart=/usr/bin/node /home/deploy/SecureProteccion/soterBack/node_modules/.bin/vite
+User=athena
+WorkingDirectory=/var/www/soter/SecureProteccion/soterBack
+ExecStart=/usr/bin/node dist/server.js
 Restart=always
 RestartSec=10
+Environment=NODE_ENV=production
+Environment=DATABASE_URL="postgresql://postgres:Juanjose@1825@192.168.1.51:5432/barbershop?schema=public"
+Environment=PORT=4001
+Environment=JWT_SECRET="genera_un_token_seguro_aqui"
 StandardOutput=journal
 StandardError=journal
 
@@ -229,8 +233,8 @@ After=network.target soter-back.service
 
 [Service]
 Type=simple
-User=deploy
-WorkingDirectory=/home/deploy/SecureProteccion/soterFront
+User=athena
+WorkingDirectory=/var/www/soter/SecureProteccion/soterFront
 ExecStart=/usr/bin/node /home/deploy/SecureProteccion/soterFront/node_modules/.bin/vite preview --port 4173 --host
 Restart=always
 RestartSec=10
