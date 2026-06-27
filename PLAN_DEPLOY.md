@@ -327,6 +327,56 @@ server {
 }
 EOF
 
+```bash
+nano /etc/nginx/sites-available/soter
+```
+
+Contenido:
+```nginx
+# Frontend
+server {
+    listen 80;
+    server_name 192.168.1.62;
+
+    root /var/www/soter/SecureProteccion/soterFront;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Assets cache
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+
+# Backend API - Puerto 4001
+upstream backend {
+    server 192.168.1.62:4001;
+}
+
+server {
+    listen 80;
+    server_name 192.168.1.62;
+
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+
+```
+```bash
+
 ln -sf /etc/nginx/sites-available/soter /etc/nginx/sites-enabled/
 nginx -t
 systemctl restart nginx
