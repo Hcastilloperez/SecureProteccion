@@ -201,3 +201,23 @@ Instalaciones:
 
 En la seccion de segiridad electronica, aca se crean los diferentes subsistemas del sistema de seguridad electronica, una vez creado los subsistemas, no permitira agregar equipos a cada uno de esos subsistemas. y seran esos equipos qeu estan en el inventario y no tienen instalacion asignada o se encuentran disponibles, al asignar el equipo se le debe proporcionar informacion especifica de la instlacion como la ubicacion(latitud, longitud) la ip del equiopo si es posible, la mac, un detalle por si es necesario , la version del firmware , se debe guardar la fecha de la instalacion y automaticamente cambiar el estado de este equipo.  en esta seccion solo se deben listar los sistemas asociados a la instalacion y solo se deben mostar los equipos asocuiados al subsistema de la instalacion seleccionada. es importante guardar la vitacora de movimintos de los equipos, desde su fecha de compra, fecha de instalacion y las posibles fechas de los cambios de instlacion o cambios de ubicacion que a suflido cada equipo.
 
+
+
+
+
+
+
+
+
+################################## DEPLOY ########################
+
+re estructura el archivo de plan_deploy.md ya que no tengo server ssl, tener en cuenta la siguiente informacion:
+1. servidor donde se realizara el deploy: 192.168.1.62 la cual es una lcx de mi proxmox
+2. el proyecto sera clonado desde https://github.com/Hcastilloperez/SecureProteccion
+3. el servidor de ollama sera localhost por el momento
+4. la ruta del servidor de postgres es: DATABASE_URL="postgresql://postgres:Juanjose@1825@192.168.1.51:5432/soter?schema=public"
+5. las variables de entorno crealas en systemmd
+6. no uses pm2 para los servicio, crea el servicio propio en la maquina
+
+
+si tienes alguna duda me pregunta

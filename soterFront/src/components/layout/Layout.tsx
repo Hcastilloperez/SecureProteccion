@@ -16,7 +16,6 @@ import {
   LogOut,
   Menu,
   X,
-  Monitor,
   MessageSquare,
   FileSearch,
   Wrench,

@@ -1,5 +1,5 @@
 import api from '@/config/axios';
-import { Contact, PaginatedResponse } from '@/types';
+import { Contact } from '@/types';
 import { ContactFormData } from '@/lib/schemas';
 
 export const contactService = {

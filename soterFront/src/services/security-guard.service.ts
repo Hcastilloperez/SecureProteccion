@@ -1,5 +1,5 @@
 import api from '@/config/axios';
-import { SecurityGuard, PaginatedResponse } from '@/types';
+import { SecurityGuard } from '@/types';
 import { SecurityGuardFormData } from '@/lib/schemas';
 
 export const securityGuardService = {

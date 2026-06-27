@@ -1,5 +1,5 @@
 import api from '@/config/axios';
-import { Authority, PaginatedResponse } from '@/types';
+import { Authority } from '@/types';
 import { AuthorityFormData } from '@/lib/schemas';
 
 export const authorityService = {
