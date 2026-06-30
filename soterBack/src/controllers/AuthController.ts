@@ -17,7 +17,7 @@ export class AuthController {
 
       const user = await prisma.user.findUnique({
         where: { email },
-        include: { installation: true },
+        include: { installation: true, roleData: true },
       });
 
       if (!user) {
@@ -47,6 +47,21 @@ export class AuthController {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      let permissions = user.roleData?.permissions || {};
+      
+      if (!user.roleData && user.role) {
+        const roleByName = await prisma.role.findUnique({
+          where: { name: user.role },
+        });
+        if (roleByName) {
+          permissions = roleByName.permissions as Record<string, boolean> || {};
+        }
+      }
+      
+      if (user.role === 'ADMIN' || permissions.all === true) {
+        permissions.all = true;
+      }
+
       res.json({
         success: true,
         data: {
@@ -57,6 +72,7 @@ export class AuthController {
             name: user.name,
             lastName: user.lastName,
             role: user.role,
+            permissions,
             installation: user.installation,
           },
         },

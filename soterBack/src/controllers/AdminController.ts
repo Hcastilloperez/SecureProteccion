@@ -273,6 +273,12 @@ export class AdminController {
         return;
       }
 
+      const existingRole = await prisma.role.findUnique({ where: { name } });
+      if (existingRole) {
+        res.status(400).json({ success: false, error: 'Ya existe un rol con este nombre' });
+        return;
+      }
+
       const role = await prisma.role.create({
         data: { name, description, permissions: permissions || {} },
       });
@@ -288,6 +294,16 @@ export class AdminController {
     try {
       const { id } = req.params;
       const { name, description, permissions, isActive } = req.body;
+
+      if (name) {
+        const existingRole = await prisma.role.findFirst({
+          where: { name, id: { not: id } },
+        });
+        if (existingRole) {
+          res.status(400).json({ success: false, error: 'Ya existe un rol con este nombre' });
+          return;
+        }
+      }
 
       const role = await prisma.role.update({
         where: { id },
@@ -495,6 +511,59 @@ export class AdminController {
     } catch (error) {
       console.error('Error fetching maintenance stats:', error);
       res.status(500).json({ success: false, error: 'Error al obtener estadísticas de mantenimiento' });
+    }
+  }
+
+  async getPermissionDefinitions(req: Request, res: Response): Promise<void> {
+    try {
+      const permissions = await prisma.permissionDefinition.findMany({
+        where: { isActive: true },
+        orderBy: { key: 'asc' },
+      });
+      res.json({ success: true, data: permissions });
+    } catch (error) {
+      console.error('Error fetching permission definitions:', error);
+      res.status(500).json({ success: false, error: 'Error al obtener definiciones de permisos' });
+    }
+  }
+
+  async createPermissionDefinition(req: Request, res: Response): Promise<void> {
+    try {
+      const { key, label, description } = req.body;
+
+      if (!key || !label) {
+        res.status(400).json({ success: false, error: 'key y label son requeridos' });
+        return;
+      }
+
+      const existing = await prisma.permissionDefinition.findUnique({ where: { key } });
+      if (existing) {
+        res.status(400).json({ success: false, error: 'La clave ya existe' });
+        return;
+      }
+
+      const permission = await prisma.permissionDefinition.create({
+        data: { key, label, description },
+      });
+
+      res.status(201).json({ success: true, data: permission });
+    } catch (error) {
+      console.error('Error creating permission definition:', error);
+      res.status(500).json({ success: false, error: 'Error al crear definición de permiso' });
+    }
+  }
+
+  async deletePermissionDefinition(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      await prisma.permissionDefinition.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      res.json({ success: true, message: 'Permiso eliminado' });
+    } catch (error) {
+      console.error('Error deleting permission definition:', error);
+      res.status(500).json({ success: false, error: 'Error al eliminar definición de permiso' });
     }
   }
 }

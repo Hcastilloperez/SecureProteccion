@@ -166,4 +166,19 @@ export const adminService = {
     );
     return response.data;
   },
+
+  getPermissionDefinitions: async () => {
+    const response = await api.get<{ success: boolean; data: any[] }>('/admin/permissions');
+    return response.data;
+  },
+
+  createPermissionDefinition: async (data: { key: string; label: string; description?: string }) => {
+    const response = await api.post<{ success: boolean; data: any }>('/admin/permissions', data);
+    return response.data;
+  },
+
+  deletePermissionDefinition: async (id: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`/admin/permissions/${id}`);
+    return response.data;
+  },
 };

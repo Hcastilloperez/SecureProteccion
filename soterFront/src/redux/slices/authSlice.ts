@@ -6,6 +6,7 @@ interface User {
   name: string;
   lastName: string;
   role: string;
+  permissions?: Record<string, boolean>;
   installation?: {
     id: string;
     name: string;

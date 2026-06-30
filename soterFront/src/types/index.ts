@@ -5,6 +5,7 @@ export interface User {
   lastName: string;
   phone?: string;
   role: RoleType;
+  permissions?: Record<string, boolean>;
   status: UserStatus;
   installation?: Installation;
   createdAt: string;
@@ -419,6 +420,14 @@ export interface Role {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PermissionDefinition {
+  id: string;
+  key: string;
+  label: string;
+  description?: string;
+  isActive: boolean;
 }
 
 export type SecurityStudyStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';

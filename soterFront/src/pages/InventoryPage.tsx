@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +38,7 @@ interface InventoryStats {
   totalInvestment: number;
 }
 
-export default function ElectronicInventoryPage() {
+export default function InventoryPage() {
   const [contracts, setContracts] = useState<InvestmentContract[]>([]);
   const [equipments, setEquipments] = useState<EquipmentWithRelations[]>([]);
   const [securitySystems, setSecuritySystems] = useState<SecuritySystem[]>([]);
@@ -106,7 +106,7 @@ export default function ElectronicInventoryPage() {
   };
 
   const handleDelete = async (type: string, id: string) => {
-    if (!confirm('¿Está seguro de eliminar?')) return;
+    if (!confirm('┬┐Est├í seguro de eliminar?')) return;
     try {
       if (type === 'contract') {
         await api.delete(`/inventory/contracts/${id}`);
@@ -174,7 +174,7 @@ export default function ElectronicInventoryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Inventario de Equipos</h1>
-        <p className="text-muted-foreground">Gestión de equipos de seguridad electrónica</p>
+        <p className="text-muted-foreground">Gestion de equipos de seguridad electr├│nica</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -213,7 +213,7 @@ export default function ElectronicInventoryPage() {
 
         <Card className="bg-red-50 border-red-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-red-700">En Reparación</CardTitle>
+            <CardTitle className="text-sm font-medium text-red-700">En Reparacion</CardTitle>
             <TrendingUp className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -244,7 +244,7 @@ export default function ElectronicInventoryPage() {
         <TabsContent value="contracts" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Contratos de Inversión</CardTitle>
+              <CardTitle>Contratos de Inversion</CardTitle>
               <Button size="sm" onClick={() => openCreate('contract')}>
                 <Plus className="h-4 w-4 mr-2" />Nuevo Contrato
               </Button>
@@ -260,7 +260,7 @@ export default function ElectronicInventoryPage() {
                       <div>
                         <p className="font-medium">{contract.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {contract.code} {contract.orderNumber && `• Orden: ${contract.orderNumber}`}
+                          {contract.code} {contract.orderNumber && `ÔÇó Orden: ${contract.orderNumber}`}
                         </p>
                         {contract.totalAmount && (
                           <p className="text-xs text-muted-foreground">
@@ -271,11 +271,11 @@ export default function ElectronicInventoryPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(contract.status)}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('contract', contract)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('contract', contract)} aria-label="Editar contrato">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('contract', contract.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('contract', contract.id)} aria-label="Eliminar contrato">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -310,29 +310,29 @@ export default function ElectronicInventoryPage() {
                           {equipment.serialNumber && <span className="text-xs text-muted-foreground">S/N: {equipment.serialNumber}</span>}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {equipment.type} {equipment.brand && `• ${equipment.brand}`} {equipment.model && `• ${equipment.model}`}
+                          {equipment.type} {equipment.brand && `${equipment.brand}`} {equipment.model && ` ${equipment.model}`}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {equipment.installation?.name || 'Sin instalación'} {equipment.securitySystem?.name && `• ${equipment.securitySystem.name}`}
+                          {equipment.installation?.name || 'Sin instalacion'} {equipment.securitySystem?.name && ` ${equipment.securitySystem.name}`}
                         </p>
                         {equipment.purchaseDate && (
                           <p className="text-xs text-muted-foreground">
                             Comprado: {new Date(equipment.purchaseDate).toLocaleDateString('es-CO')}
-                            {equipment.installationDate && ` • Instalado: ${new Date(equipment.installationDate).toLocaleDateString('es-CO')}`}
+                            {equipment.installationDate && ` Instalado: ${new Date(equipment.installationDate).toLocaleDateString('es-CO')}`}
                           </p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(equipment.status)}
-                      <Button variant="ghost" size="icon" onClick={() => openHistory(equipment)} title="Ver historial">
-                        <Clock className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openHistory(equipment)} aria-label="Ver historial del equipo">
+                        <Clock className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('equipment', equipment)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('equipment', equipment)} aria-label="Editar equipo">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('equipment', equipment.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('equipment', equipment.id)} aria-label="Eliminar equipo">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -364,9 +364,9 @@ export default function ElectronicInventoryPage() {
                       <div>
                         <p className="font-medium">{movement.equipment?.name || 'Equipo desconocido'}</p>
                         <p className="text-sm text-muted-foreground">
-                          {movement.fromInstallation?.name || 'N/A'} → {movement.toInstallation?.name}
+                          {movement.fromInstallation?.name || 'N/A'} ÔåÆ {movement.toInstallation?.name}
                         </p>
-                        {movement.reason && <p className="text-xs text-muted-foreground">Razón: {movement.reason}</p>}
+                        {movement.reason && <p className="text-xs text-muted-foreground">Raz├│n: {movement.reason}</p>}
                         <p className="text-xs text-muted-foreground">
                           {new Date(movement.movementDate).toLocaleDateString('es-CO')} {new Date(movement.movementDate).toLocaleTimeString('es-CO')}
                         </p>
@@ -390,7 +390,7 @@ export default function ElectronicInventoryPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? 'Editar' : 'Nuevo'} {dialogType === 'contract' ? 'Contrato de Inversión' : dialogType === 'equipment' ? 'Equipo' : 'Movimiento'}
+              {editingItem ? 'Editar' : 'Nuevo'} {dialogType === 'contract' ? 'Contrato de Inversi├│n' : dialogType === 'equipment' ? 'Equipo' : 'Movimiento'}
             </DialogTitle>
             <DialogDescription>Complete todos los campos requeridos.</DialogDescription>
           </DialogHeader>
@@ -442,16 +442,16 @@ export default function ElectronicInventoryPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium">{m.status === 'INSTALLED' ? 'Instalación inicial' : m.status === 'MOVED' ? 'Movimiento' : m.status}</p>
+                      <p className="font-medium">{m.status === 'INSTALLED' ? 'Instalaci├│n inicial' : m.status === 'MOVED' ? 'Movimiento' : m.status}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(m.movementDate).toLocaleDateString('es-CO')}
                       </p>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {m.fromInstallation?.name || 'N/A'} → {m.toInstallation?.name}
+                      {m.fromInstallation?.name || 'N/A'} ÔåÆ {m.toInstallation?.name}
                     </p>
                     {m.toSecuritySystem && <p className="text-sm text-muted-foreground">Sistema: {m.toSecuritySystem.name}</p>}
-                    {m.reason && <p className="text-sm mt-1">Razón: {m.reason}</p>}
+                    {m.reason && <p className="text-sm mt-1">Raz├│n: {m.reason}</p>}
                     {m.notes && <p className="text-sm text-muted-foreground mt-1">Notas: {m.notes}</p>}
                   </div>
                 </div>
@@ -488,7 +488,7 @@ function ContractForm({ contract, onSubmit, onCancel }: { contract?: InvestmentC
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Código *</Label>
+          <Label>C├│digo *</Label>
           <Input {...register('code')} placeholder="Ej: INV-2024-001" />
           {errors.code && <p className="text-sm text-red-500">{errors.code.message}</p>}
         </div>
@@ -499,7 +499,7 @@ function ContractForm({ contract, onSubmit, onCancel }: { contract?: InvestmentC
         </div>
       </div>
       <div>
-        <Label>Descripción</Label>
+        <Label>Descripci├│n</Label>
         <Textarea {...register('description')} rows={2} />
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -508,22 +508,22 @@ function ContractForm({ contract, onSubmit, onCancel }: { contract?: InvestmentC
           <Input {...register('provider')} />
         </div>
         <div>
-          <Label>Tipo de Inversión</Label>
+          <Label>Tipo de Inversi├│n</Label>
           <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('investmentType')}>
             <option value="PURCHASE">Compra</option>
             <option value="LEASE">Arrendamiento</option>
-            <option value="DONATION">Donación</option>
+            <option value="DONATION">Donaci├│n</option>
             <option value="TRANSFER">Transferencia</option>
           </select>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Número de Contrato</Label>
+          <Label>N├║mero de Contrato</Label>
           <Input {...register('contractNumber')} />
         </div>
         <div>
-          <Label>Número de Orden</Label>
+          <Label>N├║mero de Orden</Label>
           <Input {...register('orderNumber')} />
         </div>
       </div>
@@ -586,16 +586,16 @@ function MovementForm({ movement, equipments, installations, systems, onSubmit, 
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Desde Instalación</Label>
+          <Label>Desde Instalaci├│n</Label>
           <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('fromInstallationId')}>
             <option value="">Ninguna</option>
             {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
           </select>
         </div>
         <div>
-          <Label>Hacia Instalación *</Label>
+          <Label>Hacia Instalaci├│n *</Label>
           <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('toInstallationId')}>
-            <option value="">Seleccionar instalación</option>
+            <option value="">Seleccionar instalaci├│n</option>
             {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
           </select>
           {errors.toInstallationId && <p className="text-sm text-red-500">{errors.toInstallationId.message}</p>}
@@ -628,15 +628,15 @@ function MovementForm({ movement, equipments, installations, systems, onSubmit, 
           <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
             <option value="INSTALLED">Instalado</option>
             <option value="MOVED">Movido</option>
-            <option value="IN_STORAGE">En Almacén</option>
-            <option value="IN_REPAIR">En Reparación</option>
+            <option value="IN_STORAGE">En Almac├®n</option>
+            <option value="IN_REPAIR">En Reparaci├│n</option>
             <option value="DECOMMISSIONED">Dado de Baja</option>
           </select>
         </div>
       </div>
       <div>
-        <Label>Razón del Movimiento</Label>
-        <Input {...register('reason')} placeholder="Ej: Reubicación por obra, mantenimiento" />
+        <Label>Raz├│n del Movimiento</Label>
+        <Input {...register('reason')} placeholder="Ej: Reubicaci├│n por obra, mantenimiento" />
       </div>
       <div>
         <Label>Notas</Label>

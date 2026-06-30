@@ -338,7 +338,7 @@ server {
     listen 80;
     server_name 192.168.1.62;
 
-    root /var/www/soter/SecureProteccion/soterFront;
+    root /var/www/soter/SecureProteccion/soterFront/dist;
     index index.html;
 
     location / {
@@ -352,9 +352,9 @@ server {
     }
 }
 
-# Backend API - Puerto 4001
+# Backend API - Puerto 3001
 upstream backend {
-    server 192.168.1.62:4001;
+    server 192.168.1.62:3001;
 }
 
 server {

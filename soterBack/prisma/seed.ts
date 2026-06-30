@@ -9,39 +9,54 @@ async function main() {
   console.log('Creating roles...');
   const roles = [
     {
-      name: 'Administrador',
+      name: 'ADMIN',
       description: 'Administrador del sistema',
       permissions: { all: true },
     },
     {
-      name: 'Gerente de Seguridad',
+      name: 'GERENTE_SEGURIDAD',
       description: 'Gerente del departamento de seguridad',
-      permissions: { incidents: true, reports: true, users: true },
+      permissions: { dashboard: true, incidents: true, installations: true, security_physical: true, escorts: true, ai: true },
     },
     {
-      name: 'Operador Centro de Seguridad',
+      name: 'OPERADOR_CENTRO',
       description: 'Operador del centro de monitoreo',
-      permissions: { incidents: true, minuta: true },
+      permissions: { dashboard: true, minuta: true },
     },
     {
-      name: 'Coordinador Seguridad Física',
+      name: 'COORDINADOR_FISICA',
       description: 'Coordinador de vigilantes y seguridad física',
-      permissions: { incidents: true, physicalSecurity: true },
+      permissions: { dashboard: true, incidents: true, installations: true, security_physical: true },
     },
     {
-      name: 'Coordinador Seguridad Electrónica',
+      name: 'COORDINADOR_ELECTRONICA',
       description: 'Coordinador de sistemas electrónicos',
-      permissions: { incidents: true, electronicSecurity: true },
+      permissions: { dashboard: true, incidents: true, security_electronic: true, maintenance: true, ai: true },
     },
     {
-      name: 'Coordinador de Investigaciones',
+      name: 'COORDINADOR_INVESTIGACIONES',
       description: 'Coordinador de investigaciones',
-      permissions: { incidents: true, investigations: true },
+      permissions: { dashboard: true, incidents: true },
     },
     {
-      name: 'Escolta',
+      name: 'COORDINADOR_ADMINISTRATIVO',
+      description: 'Coordinador administrativo',
+      permissions: { dashboard: true, installations: true },
+    },
+    {
+      name: 'COORDINADOR_ACCIONES_LOCALITATIVAS',
+      description: 'Coordinador de acciones locativas',
+      permissions: { dashboard: true, installations: true, maintenance: true },
+    },
+    {
+      name: 'ESCOLTA',
       description: 'Escolta de protección',
-      permissions: { movements: true },
+      permissions: { dashboard: true, escorts: true },
+    },
+    {
+      name: 'VIGILANTE',
+      description: 'Vigilante de seguridad',
+      permissions: { dashboard: true },
     },
   ];
 
@@ -53,6 +68,29 @@ async function main() {
     });
   }
   console.log('Roles created');
+
+  console.log('Creating permission definitions...');
+  const permissionDefinitions = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'minuta', label: 'Minuta' },
+    { key: 'incidents', label: 'Incidentes' },
+    { key: 'installations', label: 'Instalaciones' },
+    { key: 'security_electronic', label: 'Inventario Equipos' },
+    { key: 'security_physical', label: 'Seguridad Física' },
+    { key: 'escorts', label: 'Escoltas' },
+    { key: 'admin', label: 'Administración' },
+    { key: 'maintenance', label: 'Mantenimiento' },
+    { key: 'ai', label: 'Inteligencia Artificial' },
+  ];
+
+  for (const perm of permissionDefinitions) {
+    await prisma.permissionDefinition.upsert({
+      where: { key: perm.key },
+      update: {},
+      create: perm,
+    });
+  }
+  console.log('Permission definitions created');
 
   console.log('Creating incident statuses...');
   const incidentStatuses = [
@@ -171,9 +209,13 @@ async function main() {
 
   for (const user of testUsers) {
     const hashedPassword = await bcrypt.hash(user.password, 12);
+    const role = await prisma.role.findUnique({ where: { name: user.role } });
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      update: {
+        role: user.role as any,
+        roleId: role?.id,
+      },
       create: {
         email: user.email,
         password: hashedPassword,
@@ -181,6 +223,7 @@ async function main() {
         lastName: user.lastName,
         phone: '+57 300 000 0000',
         role: user.role as any,
+        roleId: role?.id,
       },
     });
   }

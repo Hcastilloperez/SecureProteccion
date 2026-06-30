@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
-import { rolePermissions, Permission } from '@/lib/permissions';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
 import IncidentsPage from '@/pages/IncidentsPage';
@@ -10,11 +9,12 @@ import MinutaPage from '@/pages/MinutaPage';
 import InstallationsPage from '@/pages/InstallationsPage';
 import InstallationDetailPage from '@/pages/InstallationDetailPage';
 import ElectronicSecurityPage from '@/pages/ElectronicSecurityPage';
-import ElectronicInventoryPage from '@/pages/ElectronicInventoryPage';
+import InventoryPage from '@/pages/InventoryPage';
 import PhysicalSecurityPage from '@/pages/PhysicalSecurityPage';
 import EscortsPage from '@/pages/EscortsPage';
 import AdminPage from '@/pages/AdminPage';
 import AIPage from '@/pages/AIPage';
+import MaintenancePage from '@/pages/MaintenancePage';
 import Layout from '@/components/layout/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -22,15 +22,21 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 }
 
-function PermissionRoute({ permission, children }: { permission: Permission; children: React.ReactNode }) {
+function PermissionRoute({ permission, children }: { permission: string; children: React.ReactNode }) {
   const { user } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
-  const userRole = user?.role as keyof typeof rolePermissions;
-  
-  if (!user || !rolePermissions[userRole]?.includes(permission)) {
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const userPermissions = user.permissions || {};
+  const hasAccess = userPermissions.all === true || userPermissions[permission] === true;
+
+  if (!hasAccess) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -90,16 +96,16 @@ function App() {
         <Route
           path="electronic-security"
           element={
-            <PermissionRoute permission="security_electronic">
+            <PermissionRoute permission="electronic_security">
               <ElectronicSecurityPage />
             </PermissionRoute>
           }
         />
         <Route
-          path="electronic-inventory"
+          path="inventory"
           element={
-            <PermissionRoute permission="security_electronic">
-              <ElectronicInventoryPage />
+            <PermissionRoute permission="inventory">
+              <InventoryPage />
             </PermissionRoute>
           }
         />
@@ -132,6 +138,14 @@ function App() {
           element={
             <PermissionRoute permission="ai">
               <AIPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="maintenance"
+          element={
+            <PermissionRoute permission="maintenance">
+              <MaintenancePage />
             </PermissionRoute>
           }
         />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,9 @@ import {
   Plus, Search, Clock, AlertTriangle, Send, ArrowUpRight,
   MapPin, User, MessageSquare, CheckCircle, XCircle, ShieldCheck
 } from 'lucide-react';
+
+const CreateIncidentForm = lazy(() => import('@/components/minuta/CreateIncidentForm'));
+const EscalateForm = lazy(() => import('@/components/minuta/EscalateForm'));
 
 interface Incident {
   id: string;
@@ -44,6 +47,32 @@ interface Installation { id: string; name: string }
 interface Status { id: string; code: string; name: string }
 interface User { id: string; name: string; lastName: string; role: string }
 
+function FormFallback() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+      <div className="space-y-2">
+        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-10 w-full animate-pulse rounded bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="h-24 w-full animate-pulse rounded bg-muted" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+          <div className="h-10 w-full animate-pulse rounded bg-muted" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+          <div className="h-10 w-full animate-pulse rounded bg-muted" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MinutaPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
@@ -68,15 +97,7 @@ export default function MinutaPage() {
     dateTo: '',
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    fetchIncidents();
-  }, [filters]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [typesRes, installationsRes, statusesRes, usersRes] = await Promise.all([
@@ -92,9 +113,9 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error fetching data:', error);
     }
-  };
+  }, []);
 
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     try {
       const response = await incidentService.getAll({ limit: 50 });
       if (response.success) {
@@ -124,9 +145,9 @@ export default function MinutaPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.search, filters.installationId, filters.incidentTypeId, filters.statusCode]);
 
-  const fetchIncidentDetail = async (id: string) => {
+  const fetchIncidentDetail = useCallback(async (id: string) => {
     try {
       const response = await incidentService.getById(id);
       if (response.success && response.data) {
@@ -136,9 +157,9 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error fetching incident detail:', error);
     }
-  };
+  }, []);
 
-  const handleAddComment = async () => {
+  const handleAddComment = useCallback(async () => {
     if (!newComment.trim() || !selectedIncident) return;
     try {
       await incidentService.addTimeline(selectedIncident.id, {
@@ -151,9 +172,9 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error adding comment:', error);
     }
-  };
+  }, [newComment, isInternal, selectedIncident, fetchIncidentDetail]);
 
-  const handleEscalate = async (assignedToId: string, comment: string) => {
+  const handleEscalate = useCallback(async (assignedToId: string, comment: string) => {
     if (!selectedIncident) return;
     try {
       await incidentService.escalate(selectedIncident.id, { assignedToId, comment });
@@ -163,9 +184,17 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error escalating:', error);
     }
-  };
+  }, [selectedIncident, fetchIncidentDetail, fetchIncidents]);
 
-  const handleCreateIncident = async (data: any) => {
+  const handleCreateIncident = useCallback(async (data: {
+    title: string;
+    description: string;
+    incidentTypeId: string;
+    installationId: string;
+    priority: string;
+    location: string;
+    reportedBy: string;
+  }) => {
     try {
       await incidentService.create(data);
       setCreateDialogOpen(false);
@@ -173,9 +202,9 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error creating incident:', error);
     }
-  };
+  }, [fetchIncidents]);
 
-  const handleVerify = async (isValid: boolean) => {
+  const handleVerify = useCallback(async (isValid: boolean) => {
     if (!selectedIncident) return;
     try {
       await incidentService.verify(selectedIncident.id, { isValid, comment: verifyComment });
@@ -186,10 +215,37 @@ export default function MinutaPage() {
     } catch (error) {
       console.error('Error verifying incident:', error);
     }
-  };
+  }, [selectedIncident, verifyComment, fetchIncidentDetail, fetchIncidents]);
 
-  const openIncidents = incidents.filter(i => ['OPEN'].includes(i.status.code));
-  const closedIncidents = incidents.filter(i => ['CLOSED', 'CANCELLED'].includes(i.status.code));
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchIncidents();
+  }, [fetchIncidents]);
+
+  const openIncidents = useMemo(
+    () => incidents.filter(i => ['OPEN', 'VERIFIED'].includes(i.status.code)),
+    [incidents]
+  );
+  const escalatedIncidents = useMemo(
+    () => incidents.filter(i => i.status.code === 'ESCALATED'),
+    [incidents]
+  );
+  const closedIncidents = useMemo(
+    () => incidents.filter(i => ['CLOSED', 'CANCELLED'].includes(i.status.code)),
+    [incidents]
+  );
+
+  const openCount = useMemo(
+    () => openIncidents.filter(i => i.status.code === 'OPEN').length,
+    [openIncidents]
+  );
+  const verifiedCount = useMemo(
+    () => openIncidents.filter(i => i.status.code === 'VERIFIED').length,
+    [openIncidents]
+  );
 
   if (isLoading) {
     return (
@@ -225,24 +281,26 @@ export default function MinutaPage() {
                 Complete el formulario para registrar un nuevo incidente en el sistema.
               </DialogDescription>
             </DialogHeader>
-            <CreateIncidentForm
-              incidentTypes={incidentTypes}
-              installations={installations}
-              onSubmit={handleCreateIncident}
-              onCancel={() => setCreateDialogOpen(false)}
-            />
+            <Suspense fallback={<FormFallback />}>
+              <CreateIncidentForm
+                incidentTypes={incidentTypes}
+                installations={installations}
+                onSubmit={handleCreateIncident}
+                onCancel={() => setCreateDialogOpen(false)}
+              />
+            </Suspense>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <Card className="bg-orange-50">
           <CardHeader className="flex flex-row items-center justify-between py-2">
             <CardTitle className="text-sm font-medium text-orange-700">Abiertos</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-700" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-700">{openIncidents.filter(i => i.status.code === 'OPEN').length}</div>
+            <div className="text-2xl font-bold text-orange-700">{openCount}</div>
           </CardContent>
         </Card>
         <Card className="bg-green-50">
@@ -251,7 +309,16 @@ export default function MinutaPage() {
             <CheckCircle className="h-4 w-4 text-green-700" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">{openIncidents.filter(i => i.status.code === 'VERIFIED').length}</div>
+            <div className="text-2xl font-bold text-green-700">{verifiedCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-purple-50">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
+            <CardTitle className="text-sm font-medium text-purple-700">Escalados</CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-purple-700" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-700">{escalatedIncidents.length}</div>
           </CardContent>
         </Card>
         <Card className="bg-blue-50">
@@ -306,12 +373,15 @@ export default function MinutaPage() {
       </Card>
 
       <Tabs defaultValue="open" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="open">
             Incidentes Abiertos ({openIncidents.length})
           </TabsTrigger>
+          <TabsTrigger value="escalated">
+            Escalados ({escalatedIncidents.length})
+          </TabsTrigger>
           <TabsTrigger value="closed">
-            Incidentes Cerrados ({closedIncidents.length})
+            Cerrados ({closedIncidents.length})
           </TabsTrigger>
         </TabsList>
 
@@ -369,6 +439,54 @@ export default function MinutaPage() {
                       <Badge className={getPriorityColor(incident.priority)}>
                         {incident.priority}
                       </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="escalated" className="space-y-4">
+          {escalatedIncidents.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <ArrowUpRight className="h-12 w-12 text-purple-500 mb-4" />
+                <h3 className="text-lg font-semibold">No hay incidentes escalados</h3>
+                <p className="text-muted-foreground">Los incidentes verificados aparecerán aquí para seguimiento</p>
+              </CardContent>
+            </Card>
+          ) : (
+            escalatedIncidents.map((incident) => (
+              <Card key={incident.id} className="cursor-pointer hover:border-primary transition-colors opacity-75"
+                onClick={() => fetchIncidentDetail(incident.id)}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className={`p-2 rounded-full bg-purple-100`}>
+                        <ArrowUpRight className="h-5 w-5 text-purple-700" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{incident.title}</h3>
+                          <Badge className={getStatusColor(incident.status.code)}>
+                            {incident.status.name}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {incident.incidentType.name} • {incident.installation.name}
+                        </p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {incident.reportedBy}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDateTime(incident.createdAt)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -509,12 +627,14 @@ export default function MinutaPage() {
                         <p className="text-sm text-muted-foreground mb-4">
                           Este tipo de incidente es atendido por: <strong>{selectedIncident.incidentType.coordinatorType || 'Coordinador General'}</strong>
                         </p>
-                        <EscalateForm
-                          incidentType={selectedIncident.incidentType.coordinatorType}
-                          users={users}
-                          onSubmit={handleEscalate}
-                          onCancel={() => setEscalateDialogOpen(false)}
-                        />
+                        <Suspense fallback={<FormFallback />}>
+                          <EscalateForm
+                            incidentType={selectedIncident.incidentType.coordinatorType}
+                            users={users}
+                            onSubmit={handleEscalate}
+                            onCancel={() => setEscalateDialogOpen(false)}
+                          />
+                        </Suspense>
                       </DialogContent>
                     </Dialog>
                   )}
@@ -625,135 +745,6 @@ export default function MinutaPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function CreateIncidentForm({ incidentTypes, installations, onSubmit, onCancel }: {
-  incidentTypes: IncidentType[];
-  installations: Installation[];
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-}) {
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    incidentTypeId: incidentTypes[0]?.id || '',
-    installationId: installations[0]?.id || '',
-    priority: 'MEDIUM',
-    location: '',
-    reportedBy: '',
-  });
-
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
-      <div>
-        <Label>Título *</Label>
-        <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder="Breve descripción del incidente" />
-      </div>
-      <div>
-        <Label>Descripción Detallada *</Label>
-        <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required rows={3} placeholder="Describa el incidente con detalle..." />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo de Incidente *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.incidentTypeId} onChange={(e) => setForm({ ...form, incidentTypeId: e.target.value })} required>
-            {incidentTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <Label>Instalación *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.installationId} onChange={(e) => setForm({ ...form, installationId: e.target.value })} required>
-            {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label>Prioridad</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-            <option value="LOW">Baja</option>
-            <option value="MEDIUM">Media</option>
-            <option value="HIGH">Alta</option>
-            <option value="CRITICAL">Crítica</option>
-          </select>
-        </div>
-        <div>
-          <Label>Reportado Por *</Label>
-          <Input value={form.reportedBy} onChange={(e) => setForm({ ...form, reportedBy: e.target.value })} required placeholder="Nombre de quien reporta" />
-        </div>
-        <div>
-          <Label>Ubicación</Label>
-          <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Área o punto específico" />
-        </div>
-      </div>
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Crear Incidente</Button>
-      </div>
-    </form>
-  );
-}
-
-function EscalateForm({ incidentType, users, onSubmit, onCancel }: { incidentType?: string; users: User[]; onSubmit: (assignedToId: string, comment: string) => void; onCancel: () => void }) {
-  const [selectedGroup, setSelectedGroup] = useState('');
-  const [comment, setComment] = useState('');
-
-  const coordinatorGroups = [
-    { value: 'COORDINADOR_FISICA', label: 'Coordinador Seguridad Física' },
-    { value: 'COORDINADOR_ELECTRONICA', label: 'Coordinador Seguridad Electrónica' },
-    { value: 'COORDINADOR_INVESTIGACIONES', label: 'Coordinador Investigaciones' },
-    { value: 'COORDINADOR_ADMINISTRATIVO', label: 'Coordinador Administrativo' },
-    { value: 'COORDINADOR_ACCIONES_LOCALITATIVAS', label: 'Coordinador Acciones Locativas' },
-    { value: 'GERENTE_SEGURIDAD', label: 'Gerente de Seguridad' },
-  ];
-
-  const filteredGroup = incidentType ? coordinatorGroups.find(g => g.value.includes(incidentType)) : null;
-  const defaultGroup = filteredGroup?.value || '';
-
-  const usersInGroup = selectedGroup
-    ? users.filter(u => u.role === selectedGroup || (selectedGroup === 'GERENTE_SEGURIDAD' && u.role === 'GERENTE_SEGURIDAD'))
-    : users.filter(u => u.role.includes('COORDINADOR') || u.role === 'GERENTE_SEGURIDAD');
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label>Grupo de Coordinador *</Label>
-        <select
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={selectedGroup || defaultGroup}
-          onChange={(e) => setSelectedGroup(e.target.value)}
-          required
-        >
-          <option value="">Seleccionar grupo</option>
-          {coordinatorGroups.map((g) => (
-            <option key={g.value} value={g.value}>{g.label}</option>
-          ))}
-        </select>
-      </div>
-      {usersInGroup.length > 0 && (
-        <div>
-          <Label>Coordinador Específico (opcional)</Label>
-          <select
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            defaultValue=""
-          >
-            <option value="">Cualquiera del grupo</option>
-            {usersInGroup.map((u) => (
-              <option key={u.id} value={u.id}>{u.name} {u.lastName}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div>
-        <Label>Comentario de Escalamiento</Label>
-        <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Agregue un comentario sobre el escalamiento..." />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={() => onSubmit(selectedGroup || defaultGroup, comment)} disabled={!selectedGroup && !defaultGroup}>Escalar</Button>
-      </div>
     </div>
   );
 }

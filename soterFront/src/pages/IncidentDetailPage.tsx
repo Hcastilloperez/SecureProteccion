@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
@@ -7,16 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { incidentService } from '@/services/incident.service';
 import { uploadService } from '@/services/upload.service';
 import { Incident, IncidentAttachment } from '@/types';
 import { formatDateTime, getPriorityColor, getStatusColor } from '@/lib/utils';
 import api from '@/config/axios';
+import { CloseIncidentDialog } from '@/components/incidents/CloseIncidentDialog';
 import {
   ArrowLeft, Send, AlertTriangle, MapPin, User as UserIcon,
   Paperclip, X, FileText, Image, Video, Music, Sparkles,
-  CheckCircle, Lock, Upload, Trash2, MessageSquare,
+  CheckCircle, Upload, Trash2, MessageSquare,
   AlertCircle, ArrowUp
 } from 'lucide-react';
 
@@ -42,7 +42,7 @@ export default function IncidentDetailPage() {
     fetchIncident();
   }, [id]);
 
-  const fetchIncident = async () => {
+  const fetchIncident = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await incidentService.getById(id!);
@@ -56,9 +56,9 @@ export default function IncidentDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
 
-  const handleAddComment = async () => {
+  const handleAddComment = useCallback(async () => {
     if (!newComment.trim()) return;
     try {
       setIsSubmitting(true);
@@ -71,16 +71,16 @@ export default function IncidentDetailPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [newComment, isInternal, id, fetchIncident]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     try {
       setUploadingFiles(true);
       const response = await uploadService.uploadIncidentFiles(id!, Array.from(files));
       if (response.success) {
-        setAttachments([...response.data, ...attachments]);
+        setAttachments(prev => [...response.data, ...prev]);
         fetchIncident();
       }
     } catch (error) {
@@ -89,19 +89,19 @@ export default function IncidentDetailPage() {
       setUploadingFiles(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  };
+  }, [id, fetchIncident]);
 
-  const handleDeleteFile = async (attachmentId: string) => {
+  const handleDeleteFile = useCallback(async (attachmentId: string) => {
     if (!confirm('¿Eliminar este archivo?')) return;
     try {
       await uploadService.deleteAttachment(attachmentId);
-      setAttachments(attachments.filter(a => a.id !== attachmentId));
+      setAttachments(prev => prev.filter(a => a.id !== attachmentId));
     } catch (error) {
       console.error('Error deleting file:', error);
     }
-  };
+  }, []);
 
-  const handleReceive = async () => {
+  const handleReceive = useCallback(async () => {
     try {
       setIsSubmitting(true);
       await incidentService.receive(id!);
@@ -111,9 +111,9 @@ export default function IncidentDetailPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [id, fetchIncident]);
 
-  const handleEscalateToGerente = async () => {
+  const handleEscalateToGerente = useCallback(async () => {
     try {
       setIsSubmitting(true);
       await incidentService.escalate(id!, {
@@ -127,9 +127,9 @@ export default function IncidentDetailPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [id, incident?.assignedToId, user?.id, fetchIncident]);
 
-  const handleCloseIncident = async () => {
+  const handleCloseIncident = useCallback(async () => {
     if (!finalReport.trim()) {
       alert('El informe final es obligatorio para cerrar el incidente');
       return;
@@ -144,9 +144,9 @@ export default function IncidentDetailPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [finalReport, id, fetchIncident]);
 
-  const handleAIAnalysis = async () => {
+  const handleAIAnalysis = useCallback(async () => {
     try {
       setIsAnalyzingAI(true);
       const response = await api.post('/ai/analyze', { incidentId: id });
@@ -160,23 +160,60 @@ export default function IncidentDetailPage() {
     } finally {
       setIsAnalyzingAI(false);
     }
-  };
+  }, [id, fetchIncident]);
 
-  const getFileIcon = (mimeType: string) => {
+  const getFileIcon = useCallback((mimeType: string) => {
     if (mimeType.startsWith('image/')) return <Image className="h-5 w-5 text-green-500" />;
     if (mimeType.startsWith('video/')) return <Video className="h-5 w-5 text-purple-500" />;
     if (mimeType.startsWith('audio/')) return <Music className="h-5 w-5 text-orange-500" />;
     return <FileText className="h-5 w-5 text-blue-500" />;
-  };
+  }, []);
 
   const statusCode = incident?.status.code || '';
 
-  const isCoordinador = user?.role?.includes('COORDINADOR') || user?.role === 'GERENTE_SEGURIDAD' || user?.role === 'ADMIN';
+  const isCoordinador = useMemo(() => {
+    return user?.role?.includes('COORDINADOR') || user?.role === 'GERENTE_SEGURIDAD' || user?.role === 'ADMIN';
+  }, [user?.role]);
 
-  const canReceive = statusCode === 'ESCALATED' && isCoordinador;
-  const canEscalateToGerente = (statusCode === 'IN_PROGRESS' || statusCode === 'ESCALATED') && isCoordinador;
-  const canClose = (statusCode === 'IN_PROGRESS' || statusCode === 'ESCALATED') && isCoordinador;
-  const canEdit = statusCode !== 'CLOSED' && statusCode !== 'CANCELLED';
+  const canReceive = useMemo(() => {
+    return statusCode === 'ESCALATED' && isCoordinador;
+  }, [statusCode, isCoordinador]);
+
+  const canEscalateToGerente = useMemo(() => {
+    return (statusCode === 'IN_PROGRESS' || statusCode === 'ESCALATED') && isCoordinador;
+  }, [statusCode, isCoordinador]);
+
+  const canClose = useMemo(() => {
+    return (statusCode === 'IN_PROGRESS' || statusCode === 'ESCALATED') && isCoordinador;
+  }, [statusCode, isCoordinador]);
+
+  const canEdit = useMemo(() => {
+    return statusCode !== 'CLOSED' && statusCode !== 'CANCELLED';
+  }, [statusCode]);
+
+  const handleCloseDialogOpenChange = useCallback((open: boolean) => {
+    setCloseDialogOpen(open);
+  }, []);
+
+  const handleFinalReportChange = useCallback((value: string) => {
+    setFinalReport(value);
+  }, []);
+
+  const handleInternalToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsInternal(e.target.checked);
+  }, []);
+
+  const handleCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewComment(e.target.value);
+  }, []);
+
+  const closeAiRecommendation = useCallback(() => {
+    setAiRecommendation(null);
+  }, []);
+
+  const handleFileInputClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   if (isLoading) {
     return (
@@ -238,46 +275,14 @@ export default function IncidentDetailPage() {
           )}
 
           {canClose && (
-            <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Lock className="mr-2 h-4 w-4" />
-                  Cerrar Incidente
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    Cerrar Incidente
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      <strong>Importante:</strong> El informe final es <strong>obligatorio</strong> para cerrar el incidente.
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Descripción de Acciones Realizadas *</Label>
-                    <Textarea
-                      value={finalReport}
-                      onChange={(e) => setFinalReport(e.target.value)}
-                      placeholder="Describa detalladamente las acciones realizadas para resolver el incidente..."
-                      rows={8}
-                      className="font-mono text-sm"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleCloseIncident} disabled={!finalReport.trim() || isSubmitting}>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Cerrar con Informe
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <CloseIncidentDialog
+              open={closeDialogOpen}
+              onOpenChange={handleCloseDialogOpenChange}
+              finalReport={finalReport}
+              onFinalReportChange={handleFinalReportChange}
+              onClose={handleCloseIncident}
+              isSubmitting={isSubmitting}
+            />
           )}
         </div>
       </div>
@@ -368,7 +373,7 @@ export default function IncidentDetailPage() {
               </CardHeader>
               <CardContent>
                 <p className="whitespace-pre-wrap text-sm">{aiRecommendation}</p>
-                <Button variant="ghost" size="sm" onClick={() => setAiRecommendation(null)} className="mt-2">
+                <Button variant="ghost" size="sm" onClick={closeAiRecommendation} className="mt-2">
                   <X className="h-4 w-4 mr-1" /> Cerrar
                 </Button>
               </CardContent>
@@ -422,12 +427,12 @@ export default function IncidentDetailPage() {
                   <Textarea
                     placeholder="Agregar comentario..."
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={handleCommentChange}
                     rows={2}
                   />
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} className="rounded" />
+                      <input type="checkbox" checked={isInternal} onChange={handleInternalToggle} className="rounded" />
                       Marcar como interno
                     </label>
                     <Button onClick={handleAddComment} disabled={!newComment.trim() || isSubmitting} size="sm">
@@ -449,7 +454,7 @@ export default function IncidentDetailPage() {
                 {canEdit && (
                   <div>
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept="image/*,video/*,audio/*,application/pdf" className="hidden" />
-                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingFiles}>
+                    <Button variant="outline" size="sm" onClick={handleFileInputClick} disabled={uploadingFiles}>
                       <Upload className="mr-2 h-4 w-4" />
                       {uploadingFiles ? 'Subiendo...' : 'Adjuntar'}
                     </Button>

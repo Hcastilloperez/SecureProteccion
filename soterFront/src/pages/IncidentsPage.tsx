@@ -1,22 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { RootState } from '@/redux/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { incidentService } from '@/services/incident.service';
 import { adminService } from '@/services/admin.service';
 import { installationService } from '@/services/installation.service';
 import { Incident, IncidentType, Status, Installation } from '@/types';
-import { incidentSchema, IncidentFormData } from '@/lib/schemas';
+import { IncidentFormData } from '@/lib/schemas';
 import { formatDateTime, getPriorityColor, getStatusColor } from '@/lib/utils';
 import { Plus, Search, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
+
+const IncidentForm = lazy(() => import('@/components/incidents/IncidentForm').then(m => ({ default: m.IncidentForm })));
 
 export default function IncidentsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -45,7 +43,7 @@ export default function IncidentsPage() {
     }
   }, [user, statusFilter]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [incidentsRes, typesRes, statusesRes, installationsRes] = await Promise.all([
@@ -66,13 +64,13 @@ export default function IncidentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, search, statusFilter]);
 
-  const handleSave = async (data: any) => {
+  const handleSave = useCallback(async (data: IncidentFormData) => {
     try {
       if (editingIncident) {
         const { installationId, ...updateData } = data;
-        await incidentService.update(editingIncident.id, updateData);
+        await incidentService.update(editingIncident.id, updateData as any);
       } else {
         await incidentService.create(data);
       }
@@ -82,22 +80,53 @@ export default function IncidentsPage() {
     } catch (error) {
       console.error('Error saving:', error);
     }
-  };
+  }, [editingIncident, fetchData]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('¿Está seguro de eliminar este incidente?')) return;
     try {
-      await incidentService.update(id, { statusId: statuses.find(s => s.code === 'CANCELLED')?.id } as any);
+      const cancelledStatus = statuses.find(s => s.code === 'CANCELLED');
+      await incidentService.update(id, { statusId: cancelledStatus?.id } as any);
       fetchData();
     } catch (error) {
       console.error('Error deleting:', error);
     }
-  };
+  }, [statuses, fetchData]);
 
-  const openEdit = (incident: Incident) => {
+  const openEdit = useCallback((incident: Incident) => {
     setEditingIncident(incident);
     setDialogOpen(true);
-  };
+  }, []);
+
+  const openCreate = useCallback(() => {
+    setEditingIncident(null);
+    setDialogOpen(true);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingIncident(null);
+  }, []);
+
+  const handleStatusFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value);
+  }, []);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+  }, []);
+
+  const goToPreviousPage = useCallback(() => {
+    setPagination(p => ({ ...p, page: p.page - 1 }));
+  }, []);
+
+  const goToNextPage = useCallback(() => {
+    setPagination(p => ({ ...p, page: p.page + 1 }));
+  }, []);
+
+  const canShowOpenVerified = useMemo(() => {
+    return user?.role === 'ADMIN' || user?.role === 'GERENTE_SEGURIDAD';
+  }, [user?.role]);
 
   return (
     <div className="space-y-6">
@@ -106,7 +135,7 @@ export default function IncidentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Incidentes</h1>
           <p className="text-muted-foreground">Gestión de incidentes de seguridad</p>
         </div>
-        <Button onClick={() => { setEditingIncident(null); setDialogOpen(true); }}>
+        <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Incidente
         </Button>
@@ -117,15 +146,15 @@ export default function IncidentsPage() {
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar incidentes..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Buscar incidentes..." value={search} onChange={handleSearchChange} className="pl-9" />
             </div>
-            <select className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={statusFilter} onChange={handleStatusFilterChange}>
               <option value="">Todos los estados</option>
               <option value="IN_PROGRESS,ESCALATED">En Progreso y Escalados</option>
               <option value="IN_PROGRESS">En Investigación</option>
               <option value="ESCALATED">Escalados a Gerencia</option>
               <option value="CLOSED">Cerrados</option>
-              {(user?.role === 'ADMIN' || user?.role === 'GERENTE_SEGURIDAD') && (
+              {canShowOpenVerified && (
                 <option value="OPEN,VERIFIED">Abiertos y Verificados</option>
               )}
             </select>
@@ -160,16 +189,16 @@ export default function IncidentsPage() {
                     </div>
                   </Link>
                   <div className="flex items-center gap-1 ml-4">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(incident)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(incident)} aria-label="Editar incidente"><Pencil className="h-4 w-4" aria-hidden="true" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)} aria-label="Eliminar incidente"><Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" /></Button>
                   </div>
                 </div>
               ))}
               {pagination.totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1}>Anterior</Button>
+                  <Button variant="outline" onClick={goToPreviousPage} disabled={pagination.page === 1}>Anterior</Button>
                   <span className="text-sm text-muted-foreground">Página {pagination.page} de {pagination.totalPages}</span>
-                  <Button variant="outline" onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.totalPages}>Siguiente</Button>
+                  <Button variant="outline" onClick={goToNextPage} disabled={pagination.page === pagination.totalPages}>Siguiente</Button>
                 </div>
               )}
             </div>
@@ -183,103 +212,17 @@ export default function IncidentsPage() {
             <DialogTitle>{editingIncident ? 'Editar' : 'Nuevo'} Incidente</DialogTitle>
             <DialogDescription>Complete todos los campos obligatorios para crear o actualizar un incidente.</DialogDescription>
           </DialogHeader>
-          <IncidentForm
-            incident={editingIncident}
-            incidentTypes={incidentTypes}
-            installations={installations}
-            onSubmit={handleSave}
-            onCancel={() => setDialogOpen(false)}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+            <IncidentForm
+              incident={editingIncident}
+              incidentTypes={incidentTypes}
+              installations={installations}
+              onSubmit={handleSave}
+              onCancel={closeDialog}
+            />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function IncidentForm({ incident, incidentTypes, installations, onSubmit, onCancel }: { incident?: Incident | null; incidentTypes: IncidentType[]; installations: Installation[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<IncidentFormData>({
-    resolver: zodResolver(incidentSchema),
-    defaultValues: {
-      title: incident?.title || '',
-      description: incident?.description || '',
-      incidentTypeId: incident?.incidentTypeId || incidentTypes[0]?.id || '',
-      installationId: incident?.installationId || installations[0]?.id || '',
-      priority: incident?.priority || 'MEDIUM',
-      location: incident?.location || '',
-      reportedBy: incident?.reportedBy || '',
-      latitude: incident?.latitude || undefined,
-      longitude: incident?.longitude || undefined,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="title">Título *</Label>
-        <Input id="title" {...register('title')} placeholder="Breve descripción del incidente" />
-        {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>}
-      </div>
-      <div>
-        <Label htmlFor="description">Descripción *</Label>
-        <Textarea id="description" {...register('description')} placeholder="Detalle completo del incidente" rows={3} />
-        {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="incidentTypeId">Tipo de Incidente *</Label>
-          <select id="incidentTypeId" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('incidentTypeId')}>
-            <option value="">Seleccionar</option>
-            {incidentTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          {errors.incidentTypeId && <p className="text-sm text-red-500 mt-1">{errors.incidentTypeId.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="installationId">Instalación *</Label>
-          <select id="installationId" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('installationId')}>
-            <option value="">Seleccionar</option>
-            {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-          {errors.installationId && <p className="text-sm text-red-500 mt-1">{errors.installationId.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="priority">Prioridad</Label>
-          <select id="priority" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('priority')}>
-            <option value="LOW">Baja</option>
-            <option value="MEDIUM">Media</option>
-            <option value="HIGH">Alta</option>
-            <option value="CRITICAL">Crítica</option>
-          </select>
-          {errors.priority && <p className="text-sm text-red-500 mt-1">{errors.priority.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="reportedBy">Reportado Por *</Label>
-          <Input id="reportedBy" {...register('reportedBy')} placeholder="Nombre de quien reporta" />
-          {errors.reportedBy && <p className="text-sm text-red-500 mt-1">{errors.reportedBy.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="location">Ubicación</Label>
-          <Input id="location" {...register('location')} placeholder="Lugar específico" />
-          {errors.location && <p className="text-sm text-red-500 mt-1">{errors.location.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="latitude">Latitud</Label>
-          <Input id="latitude" type="number" step="any" {...register('latitude')} placeholder="-90 a 90" />
-          {errors.latitude && <p className="text-sm text-red-500 mt-1">{errors.latitude.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="longitude">Longitud</Label>
-          <Input id="longitude" type="number" step="any" {...register('longitude')} placeholder="-180 a 180" />
-          {errors.longitude && <p className="text-sm text-red-500 mt-1">{errors.longitude.message}</p>}
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{incident ? 'Actualizar' : 'Crear'}</Button>
-      </div>
-    </form>
   );
 }

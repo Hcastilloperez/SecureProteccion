@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from '../middleware/verify';
 import { config } from '../config';
 
 export class IncidentController {
-  async getAll(req: Request, res: Response): Promise<void> {
+  async getAll(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
       const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10)));
@@ -47,6 +47,21 @@ export class IncidentController {
           { title: { contains: String(req.query.search), mode: 'insensitive' } },
           { description: { contains: String(req.query.search), mode: 'insensitive' } },
         ];
+      }
+
+      const userRole = req.user?.role;
+      const userId = req.user?.userId;
+
+      const coordinatorRoles = [
+        'COORDINADOR_FISICA',
+        'COORDINADOR_ELECTRONICA',
+        'COORDINADOR_INVESTIGACIONES',
+        'COORDINADOR_ADMINISTRATIVO',
+        'COORDINADOR_ACCIONES_LOCALITATIVAS',
+      ];
+
+      if (userRole && coordinatorRoles.includes(userRole) && userId) {
+        where.assignedToId = userId;
       }
 
       const [data, total] = await Promise.all([

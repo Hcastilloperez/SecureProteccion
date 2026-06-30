@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { escortSchema, escortRouteSchema, escortMovementSchema, escortAssignmentSchema, EscortFormData, EscortRouteFormData, EscortMovementFormData, EscortAssignmentFormData } from '@/lib/schemas';
+import { EscortForm, RouteForm, AssignmentForm, MovementForm } from '@/components/escorts';
 import { Escort, EscortRoute, EscortMovement, EscortAssignment, Installation } from '@/types';
 import { getStatusText } from '@/lib/utils';
 import {
@@ -17,6 +14,18 @@ import {
   Play, Pause, CheckCircle, XCircle, History
 } from 'lucide-react';
 import api from '@/config/axios';
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="animate-pulse space-y-3">
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+      </div>
+    </div>
+  );
+}
 
 export default function EscortsPage() {
   const [escorts, setEscorts] = useState<Escort[]>([]);
@@ -232,11 +241,11 @@ export default function EscortsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(assignment.status)}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('assignment', assignment)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('assignment', assignment)} aria-label="Editar asignación">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('assignment', assignment.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('assignment', assignment.id)} aria-label="Eliminar asignación">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -277,14 +286,14 @@ export default function EscortsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openHistory(escort)} title="Ver historial">
-                        <History className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openHistory(escort)} aria-label="Ver historial del escolta">
+                        <History className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('escort', escort)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('escort', escort)} aria-label="Editar escolta">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('escort', escort.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('escort', escort.id)} aria-label="Eliminar escolta">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -326,11 +335,11 @@ export default function EscortsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('route', route)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('route', route)} aria-label="Editar ruta">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('route', route.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('route', route.id)} aria-label="Eliminar ruta">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -377,8 +386,8 @@ export default function EscortsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(movement.status)}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('movement', movement)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('movement', movement)} aria-label="Editar movimiento">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -449,41 +458,43 @@ export default function EscortsPage() {
             </DialogTitle>
             <DialogDescription>Complete todos los campos requeridos.</DialogDescription>
           </DialogHeader>
-          {dialogType === 'escort' && (
-            <EscortForm
-              escort={editingItem}
-              onSubmit={(d) => handleSave('escort', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
-          {dialogType === 'route' && (
-            <RouteForm
-              route={editingItem}
-              escorts={escorts}
-              installations={installations}
-              onSubmit={(d) => handleSave('route', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
-          {dialogType === 'assignment' && (
-            <AssignmentForm
-              assignment={editingItem}
-              escorts={escorts}
-              routes={routes}
-              onSubmit={(d) => handleSave('assignment', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
-          {dialogType === 'movement' && (
-            <MovementForm
-              movement={editingItem}
-              escorts={escorts}
-              routes={routes}
-              assignments={assignments}
-              onSubmit={(d) => handleSave('movement', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
+          <Suspense fallback={<FormSkeleton />}>
+            {dialogType === 'escort' && (
+              <EscortForm
+                escort={editingItem}
+                onSubmit={(d) => handleSave('escort', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+            {dialogType === 'route' && (
+              <RouteForm
+                route={editingItem}
+                escorts={escorts}
+                installations={installations}
+                onSubmit={(d) => handleSave('route', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+            {dialogType === 'assignment' && (
+              <AssignmentForm
+                assignment={editingItem}
+                escorts={escorts}
+                routes={routes}
+                onSubmit={(d) => handleSave('assignment', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+            {dialogType === 'movement' && (
+              <MovementForm
+                movement={editingItem}
+                escorts={escorts}
+                routes={routes}
+                assignments={assignments}
+                onSubmit={(d) => handleSave('movement', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+          </Suspense>
         </DialogContent>
       </Dialog>
 
@@ -548,350 +559,5 @@ export default function EscortsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function EscortForm({ escort, onSubmit, onCancel }: { escort?: Escort; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<EscortFormData>({
-    resolver: zodResolver(escortSchema),
-    defaultValues: {
-      documentType: (escort?.documentType as any) || 'CC',
-      documentNumber: escort?.documentNumber || '',
-      name: escort?.name || '',
-      lastName: escort?.lastName || '',
-      phone: escort?.phone || '',
-      email: escort?.email || '',
-      position: escort?.position || '',
-      licenseType: escort?.licenseType || '',
-      licenseNumber: escort?.licenseNumber || '',
-      isActive: escort?.isActive ?? true,
-      observations: escort?.observations || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo Documento</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('documentType')}>
-            <option value="CC">Cédula</option>
-            <option value="CE">Cédula Extranjería</option>
-            <option value="PP">Pasaporte</option>
-          </select>
-        </div>
-        <div>
-          <Label>Número Documento *</Label>
-          <Input {...register('documentNumber')} />
-          {errors.documentNumber && <p className="text-sm text-red-500">{errors.documentNumber.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre *</Label>
-          <Input {...register('name')} />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Apellido *</Label>
-          <Input {...register('lastName')} />
-          {errors.lastName && <p className="text-sm text-red-500">{errors.lastName.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Teléfono *</Label>
-          <Input {...register('phone')} />
-          {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
-        </div>
-        <div>
-          <Label>Email</Label>
-          <Input type="email" {...register('email')} />
-          {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Cargo *</Label>
-          <Input {...register('position')} />
-          {errors.position && <p className="text-sm text-red-500">{errors.position.message}</p>}
-        </div>
-        <div>
-          <Label>Tipo Licencia</Label>
-          <Input {...register('licenseType')} placeholder="Ej: A1, B1" />
-        </div>
-      </div>
-      <div>
-        <Label>Número Licencia</Label>
-        <Input {...register('licenseNumber')} />
-      </div>
-      <div>
-        <Label>Notas</Label>
-        <Textarea {...register('observations')} rows={2} />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function RouteForm({ route, escorts, installations, onSubmit, onCancel }: { route?: EscortRoute; escorts: Escort[]; installations: Installation[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<EscortRouteFormData>({
-    resolver: zodResolver(escortRouteSchema),
-    defaultValues: {
-      name: route?.name || '',
-      description: route?.description || '',
-      escortId: route?.escortId || '',
-      installationId: route?.installationId || '',
-      distance: route?.distance || undefined,
-      estimatedTime: route?.estimatedTime || undefined,
-      isActive: route?.isActive ?? true,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label>Nombre de la Ruta *</Label>
-        <Input {...register('name')} placeholder="Ej: Ruta Norte - Centro" />
-        {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-      </div>
-      <div>
-        <Label>Descripción</Label>
-        <Textarea {...register('description')} rows={2} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Escolta *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('escortId')}>
-            <option value="">Seleccionar escolta</option>
-            {escorts.filter(e => e.isActive).map((e) => (
-              <option key={e.id} value={e.id}>{e.name} {e.lastName}</option>
-            ))}
-          </select>
-          {errors.escortId && <p className="text-sm text-red-500">{errors.escortId.message}</p>}
-        </div>
-        <div>
-          <Label>Instalación</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('installationId')}>
-            <option value="">Ninguna</option>
-            {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Distancia (km)</Label>
-          <Input type="number" step="0.1" {...register('distance')} />
-        </div>
-        <div>
-          <Label>Tiempo Estimado (min)</Label>
-          <Input type="number" {...register('estimatedTime')} />
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function AssignmentForm({ assignment, escorts, routes, onSubmit, onCancel }: { assignment?: EscortAssignment; escorts: Escort[]; routes: EscortRoute[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<EscortAssignmentFormData>({
-    resolver: zodResolver(escortAssignmentSchema),
-    defaultValues: {
-      escortId: assignment?.escortId || '',
-      routeId: assignment?.routeId || '',
-      officialName: assignment?.officialName || '',
-      officialDocument: assignment?.officialDocument || '',
-      officialPhone: assignment?.officialPhone || '',
-      officialPosition: assignment?.officialPosition || '',
-      destination: assignment?.destination || '',
-      startDate: assignment?.startDate ? new Date(assignment.startDate).toISOString().split('T')[0] : '',
-      endDate: assignment?.endDate ? new Date(assignment.endDate).toISOString().split('T')[0] : '',
-      status: (assignment?.status as any) || 'PENDING',
-      observations: assignment?.observations || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Escolta *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('escortId')}>
-            <option value="">Seleccionar escolta</option>
-            {escorts.filter(e => e.isActive).map((e) => (
-              <option key={e.id} value={e.id}>{e.name} {e.lastName}</option>
-            ))}
-          </select>
-          {errors.escortId && <p className="text-sm text-red-500">{errors.escortId.message}</p>}
-        </div>
-        <div>
-          <Label>Ruta</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('routeId')}>
-            <option value="">Sin ruta específica</option>
-            {routes.filter(r => r.isActive).map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre del Funcionario *</Label>
-          <Input {...register('officialName')} placeholder="Nombre completo" />
-          {errors.officialName && <p className="text-sm text-red-500">{errors.officialName.message}</p>}
-        </div>
-        <div>
-          <Label>Documento del Funcionario *</Label>
-          <Input {...register('officialDocument')} placeholder="Número de documento" />
-          {errors.officialDocument && <p className="text-sm text-red-500">{errors.officialDocument.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Teléfono del Funcionario</Label>
-          <Input {...register('officialPhone')} />
-        </div>
-        <div>
-          <Label>Cargo del Funcionario</Label>
-          <Input {...register('officialPosition')} />
-        </div>
-      </div>
-      <div>
-        <Label>Destino *</Label>
-        <Input {...register('destination')} placeholder="Dirección o lugar de destino" />
-        {errors.destination && <p className="text-sm text-red-500">{errors.destination.message}</p>}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label>Fecha/Hora Inicio *</Label>
-          <Input type="datetime-local" {...register('startDate')} />
-          {errors.startDate && <p className="text-sm text-red-500">{errors.startDate.message}</p>}
-        </div>
-        <div>
-          <Label>Fecha/Hora Fin</Label>
-          <Input type="datetime-local" {...register('endDate')} />
-        </div>
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="PENDING">Pendiente</option>
-            <option value="CONFIRMED">Confirmado</option>
-            <option value="IN_PROGRESS">En Progreso</option>
-            <option value="COMPLETED">Completado</option>
-            <option value="CANCELLED">Cancelado</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <Label>Notas</Label>
-        <Textarea {...register('observations')} rows={2} />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function MovementForm({ movement, escorts, routes, assignments, onSubmit, onCancel }: { movement?: EscortMovement; escorts: Escort[]; routes: EscortRoute[]; assignments: EscortAssignment[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<EscortMovementFormData>({
-    resolver: zodResolver(escortMovementSchema),
-    defaultValues: {
-      assignmentId: movement?.assignmentId || '',
-      routeId: movement?.routeId || '',
-      escortId: movement?.escortId || '',
-      date: movement?.date ? new Date(movement.date).toISOString().split('T')[0] : '',
-      startTime: movement?.startTime ? new Date(movement.startTime).toISOString().slice(0, 16) : '',
-      startLatitude: movement?.startLatitude || undefined,
-      startLongitude: movement?.startLongitude || undefined,
-      status: (movement?.status as any) || 'SCHEDULED',
-      observations: movement?.observations || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Escolta *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('escortId')}>
-            <option value="">Seleccionar escolta</option>
-            {escorts.filter(e => e.isActive).map((e) => (
-              <option key={e.id} value={e.id}>{e.name} {e.lastName}</option>
-            ))}
-          </select>
-          {errors.escortId && <p className="text-sm text-red-500">{errors.escortId.message}</p>}
-        </div>
-        <div>
-          <Label>Ruta *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('routeId')}>
-            <option value="">Seleccionar ruta</option>
-            {routes.filter(r => r.isActive).map((r) => (
-              <option key={r.id} value={r.id}>{r.name} - {r.escort?.name} {r.escort?.lastName}</option>
-            ))}
-          </select>
-          {errors.routeId && <p className="text-sm text-red-500">{errors.routeId.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Asignación (Opcional)</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('assignmentId')}>
-            <option value="">Sin asignación</option>
-            {assignments.filter(a => a.status !== 'CANCELLED' && a.status !== 'COMPLETED').map((a) => (
-              <option key={a.id} value={a.id}>{a.officialName} - {a.destination}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="SCHEDULED">Programado</option>
-            <option value="STARTED">Iniciado</option>
-            <option value="IN_PROGRESS">En Progreso</option>
-            <option value="PAUSED">Pausado</option>
-            <option value="COMPLETED">Completado</option>
-            <option value="NO_SHOW">No Presentó</option>
-            <option value="CANCELLED">Cancelado</option>
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Fecha *</Label>
-          <Input type="date" {...register('date')} />
-          {errors.date && <p className="text-sm text-red-500">{errors.date.message}</p>}
-        </div>
-        <div>
-          <Label>Hora Inicio *</Label>
-          <Input type="datetime-local" {...register('startTime')} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Latitud Inicial</Label>
-          <Input type="number" step="any" {...register('startLatitude')} placeholder="-90 a 90" />
-        </div>
-        <div>
-          <Label>Longitud Inicial</Label>
-          <Input type="number" step="any" {...register('startLongitude')} placeholder="-180 a 180" />
-        </div>
-      </div>
-      <div>
-        <Label>Notas</Label>
-        <Textarea {...register('observations')} rows={2} />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
   );
 }

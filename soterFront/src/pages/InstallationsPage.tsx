@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ export default function InstallationsPage() {
     }
   };
 
-  const handleSave = async (data: InstallationFormData) => {
+  const handleSave = useCallback(async (data: InstallationFormData) => {
     try {
       setIsSubmitting(true);
       const submitData = {
@@ -57,9 +57,9 @@ export default function InstallationsPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [editingInstallation]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('¿Está seguro de eliminar esta instalación?')) return;
     try {
       await installationService.delete(id);
@@ -67,12 +67,17 @@ export default function InstallationsPage() {
     } catch (error) {
       console.error('Error deleting:', error);
     }
-  };
+  }, []);
 
-  const openEdit = (installation: Installation) => {
+  const openEdit = useCallback((installation: Installation) => {
     setEditingInstallation(installation);
     setDialogOpen(true);
-  };
+  }, []);
+
+  const openCreate = useCallback(() => {
+    setEditingInstallation(null);
+    setDialogOpen(true);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -81,7 +86,7 @@ export default function InstallationsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Instalaciones</h1>
           <p className="text-muted-foreground">Gestión de instalaciones protegidas</p>
         </div>
-        <Button onClick={() => { setEditingInstallation(null); setDialogOpen(true); }}>
+        <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Nueva Instalación
         </Button>
@@ -108,36 +113,7 @@ export default function InstallationsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {installations.map((installation) => (
-                <div key={installation.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Building2 className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <Link to={`/installations/${installation.id}`}>
-                          <h3 className="font-semibold hover:text-blue-600">{installation.name}</h3>
-                        </Link>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {installation.address}, {installation.city}
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            installation.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                            installation.status === 'INACTIVE' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {installation.status === 'ACTIVE' ? 'Activa' : installation.status === 'INACTIVE' ? 'Inactiva' : 'En Mantenimiento'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(installation)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(installation.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </div>
-                </div>
+                <InstallationCard key={installation.id} installation={installation} onEdit={openEdit} onDelete={handleDelete} />
               ))}
             </div>
           )}
@@ -157,6 +133,41 @@ export default function InstallationsPage() {
           />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function InstallationCard({ installation, onEdit, onDelete }: { installation: Installation; onEdit: (i: Installation) => void; onDelete: (id: string) => void }) {
+  return (
+    <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Building2 className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <Link to={`/installations/${installation.id}`}>
+              <h3 className="font-semibold hover:text-blue-600">{installation.name}</h3>
+            </Link>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+              <MapPin className="h-3 w-3" />
+              {installation.address}, {installation.city}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                installation.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                installation.status === 'INACTIVE' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {installation.status === 'ACTIVE' ? 'Activa' : installation.status === 'INACTIVE' ? 'Inactiva' : 'En Mantenimiento'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => onEdit(installation)} aria-label="Editar instalación"><Pencil className="h-4 w-4" aria-hidden="true" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => onDelete(installation.id)} aria-label="Eliminar instalación"><Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" /></Button>
+        </div>
+      </div>
     </div>
   );
 }

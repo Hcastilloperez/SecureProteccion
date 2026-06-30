@@ -5,7 +5,6 @@ import { RootState } from '@/redux/store';
 import { logout } from '@/redux/slices/authSlice';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { rolePermissions } from '@/lib/permissions';
 import {
   LayoutDashboard,
   AlertTriangle,
@@ -17,10 +16,10 @@ import {
   Menu,
   X,
   MessageSquare,
-  FileSearch,
-  Wrench,
   Package,
   Brain,
+  Wrench,
+  MonitorPlay,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,11 +34,10 @@ const allNavigation: NavItem[] = [
   { name: 'Minuta', href: '/minuta', icon: MessageSquare, permission: 'minuta' },
   { name: 'Incidentes', href: '/incidents', icon: AlertTriangle, permission: 'incidents' },
   { name: 'Instalaciones', href: '/installations', icon: Building2, permission: 'installations' },
-  { name: 'Inventario Equipos', href: '/electronic-inventory', icon: Package, permission: 'security_electronic' },
+  { name: 'Seguridad Electrónica', href: '/electronic-security', icon: MonitorPlay, permission: 'electronic_security' },
+  { name: 'Inventario Equipos', href: '/inventory', icon: Package, permission: 'inventory' },
   { name: 'Seguridad Física', href: '/physical-security', icon: Shield, permission: 'security_physical' },
-  { name: 'Estudios de Seguridad', href: '/studies', icon: FileSearch, permission: 'studies' },
   { name: 'Mantenimientos', href: '/maintenance', icon: Wrench, permission: 'maintenance' },
-  { name: 'Inventario', href: '/inventory', icon: Package, permission: 'inventory' },
   { name: 'Escoltas', href: '/escorts', icon: Truck, permission: 'escorts' },
   { name: 'Inteligencia Artificial', href: '/ai', icon: Brain, permission: 'ai' },
   { name: 'Administración', href: '/admin', icon: Settings, permission: 'admin' },
@@ -57,8 +55,20 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const hasPermission = (permission: string): boolean => {
+    if (!user?.permissions) return false;
+    if (user.permissions.all === true) return true;
+    return user.permissions[permission] === true;
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        Saltar al contenido principal
+      </a>
       <div className="flex">
         <aside
           className={cn(
@@ -69,7 +79,7 @@ export default function Layout() {
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between h-16 px-4 border-b">
               <Link to="/" className="flex items-center gap-2">
-                <Shield className="h-8 w-8 text-primary" />
+                <Shield className="h-8 w-8 text-primary" aria-hidden="true" />
                 <span className="text-xl font-bold">SOTER</span>
               </Link>
               <Button
@@ -77,14 +87,15 @@ export default function Layout() {
                 size="icon"
                 className="lg:hidden"
                 onClick={() => setSidebarOpen(false)}
+                aria-label="Cerrar menú de navegación"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </Button>
             </div>
 
             <nav className="flex-1 px-4 py-4 space-y-1">
               {allNavigation
-                .filter(item => rolePermissions[user?.role as keyof typeof rolePermissions]?.includes(item.permission as any))
+                .filter(item => hasPermission(item.permission))
                 .map((item) => {
                   const isActive = location.pathname === item.href ||
                     (item.href !== '/' && location.pathname.startsWith(item.href));
@@ -92,6 +103,7 @@ export default function Layout() {
                     <Link
                       key={item.name}
                       to={item.href}
+                      aria-current={isActive ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         isActive
@@ -99,7 +111,7 @@ export default function Layout() {
                           : 'text-muted-foreground hover:bg-gray-100'
                       )}
                     >
-                      <item.icon className="h-5 w-5" />
+                      <item.icon className="h-5 w-5" aria-hidden="true" />
                       {item.name}
                     </Link>
                   );
@@ -127,8 +139,9 @@ export default function Layout() {
                 size="icon"
                 className="lg:hidden"
                 onClick={() => setSidebarOpen(true)}
+                aria-label="Abrir menú de navegación"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
               <div className="flex items-center gap-4">
                 {user?.installation && (
@@ -140,7 +153,7 @@ export default function Layout() {
             </div>
           </header>
 
-          <main className="p-6">
+          <main id="main-content" className="p-6">
             <Outlet />
           </main>
         </div>

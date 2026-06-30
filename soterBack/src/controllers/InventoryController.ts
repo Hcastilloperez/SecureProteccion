@@ -103,11 +103,12 @@ export class InventoryController {
 
   async getEquipments(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { installationId, contractId, status } = req.query;
+      const { installationId, contractId, status, available } = req.query;
       const where: any = {};
       if (installationId) where.installationId = String(installationId);
       if (contractId) where.investmentContractId = String(contractId);
       if (status) where.status = String(status);
+      if (available === 'true') where.securitySystemId = null;
 
       const equipments = await prisma.equipment.findMany({
         where,
@@ -252,6 +253,10 @@ export class InventoryController {
       const { id } = req.params;
       const { name, type, brand, model, serialNumber, status, location, ipAddress, macAddress, firmwareVersion, expirationDate, notes, specifications, purchaseDate, investmentContractId, installationId, securitySystemId } = req.body;
 
+      const normalizedInstallationId = installationId === '' ? null : installationId;
+      const normalizedSecuritySystemId = securitySystemId === '' ? null : securitySystemId;
+      const normalizedInvestmentContractId = investmentContractId === '' ? null : investmentContractId;
+
       const existing = await prisma.equipment.findUnique({ where: { id } });
       const oldInstallationId = existing?.installationId;
       const oldSecuritySystemId = existing?.securitySystemId;
@@ -273,9 +278,9 @@ export class InventoryController {
           ...(notes !== undefined && { notes }),
           ...(specifications !== undefined && { specifications }),
           ...(purchaseDate !== undefined && { purchaseDate: purchaseDate ? new Date(purchaseDate) : null }),
-          ...(investmentContractId !== undefined && { investmentContractId }),
-          ...(installationId !== undefined && { installationId }),
-          ...(securitySystemId !== undefined && { securitySystemId }),
+          ...(normalizedInvestmentContractId !== undefined && { investmentContractId: normalizedInvestmentContractId }),
+          ...(normalizedInstallationId !== undefined && { installationId: normalizedInstallationId }),
+          ...(normalizedSecuritySystemId !== undefined && { securitySystemId: normalizedSecuritySystemId }),
         },
         include: {
           investmentContract: true,
@@ -293,14 +298,14 @@ export class InventoryController {
         },
       });
 
-      if (installationId && (oldInstallationId !== installationId || oldSecuritySystemId !== securitySystemId)) {
+      if (normalizedInstallationId && (oldInstallationId !== normalizedInstallationId || oldSecuritySystemId !== normalizedSecuritySystemId)) {
         await prisma.equipmentMovement.create({
           data: {
             equipmentId: id,
             fromInstallationId: oldInstallationId,
-            toInstallationId: installationId,
+            toInstallationId: normalizedInstallationId,
             fromSecuritySystemId: oldSecuritySystemId,
-            toSecuritySystemId: securitySystemId,
+            toSecuritySystemId: normalizedSecuritySystemId,
             movementDate: new Date(),
             status: 'MOVED',
             reason: 'Actualización de ubicación',

@@ -1,20 +1,31 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+'use client';
+
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { securitySystemSchema, equipmentSchema, maintenanceSchema, SecuritySystemFormData, EquipmentFormData, MaintenanceFormData } from '@/lib/schemas';
-import { getStatusText } from '@/lib/utils';
-import {
-  Wrench, Plus, Pencil, Trash2, Server, Cpu
-} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { installationService } from '@/services/installation.service';
+import { EquipmentSelectorForm, EquipmentInstallationForm } from '@/components/forms/EquipmentInstallationForm';
 import api from '@/config/axios';
+import { Installation, EquipmentType } from '@/types';
+import { 
+  Cpu, ShieldAlert, Building2, Plus, 
+  Pencil, Trash2, Server, HardDrive, Monitor
+} from 'lucide-react';
+
+const ElectronicSystemForm = lazy(() => import('@/components/installation/ElectronicSystemForm').then(m => ({ default: m.ElectronicSystemForm })));
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="h-10 bg-muted rounded animate-pulse" />
+      <div className="h-20 bg-muted rounded animate-pulse" />
+      <div className="h-20 bg-muted rounded animate-pulse" />
+    </div>
+  );
+}
 
 interface SecuritySystem {
   id: string;
@@ -26,7 +37,6 @@ interface SecuritySystem {
   location?: string;
   description?: string;
   isActive: boolean;
-  installationId: string;
   installation?: { id: string; name: string };
   _count?: { equipments: number; maintenanceSchedules: number };
 }
@@ -40,104 +50,170 @@ interface Equipment {
   serialNumber?: string;
   status: string;
   location?: string;
-  ipAddress?: string;
-  macAddress?: string;
-  specifications?: { cost?: number };
-  securitySystemId: string;
   securitySystem?: { id: string; name: string };
+  installation?: { id: string; name: string };
 }
 
-interface MaintenanceSchedule {
-  id: string;
-  title: string;
-  type: string;
-  frequency: string;
-  status: string;
-  scheduledDate: string;
-  completedDate?: string;
-  cost?: number;
-  provider?: string;
-  equipment?: { id: string; name: string };
-  securitySystem?: { id: string; name: string };
+interface Stats {
+  totalSystems: number;
+  activeSystems: number;
+  totalEquipments: number;
+  stats: {
+    activeEquipments: number;
+    inRepairEquipments: number;
+    decommissionedEquipments: number;
+  };
 }
 
-interface Props {
-  installationId?: string;
-}
-
-export default function ElectronicSecurityPage({ installationId }: Props) {
+export default function ElectronicSecurityPage() {
+  const [installations, setInstallations] = useState<Installation[]>([]);
   const [systems, setSystems] = useState<SecuritySystem[]>([]);
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [maintenances, setMaintenances] = useState<MaintenanceSchedule[]>([]);
+  const [availableEquipments, setAvailableEquipments] = useState<Equipment[]>([]);
+  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<'system' | 'equipment' | 'maintenance'>('system');
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
+  const [systemDialogOpen, setSystemDialogOpen] = useState(false);
+  const [systemDialogType, setSystemDialogType] = useState<'create' | 'edit'>('create');
+  const [editingSystem, setEditingSystem] = useState<SecuritySystem | null>(null);
+  const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
+  const [selectedSystem, setSelectedSystem] = useState<SecuritySystem | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [equipmentAssignmentStep, setEquipmentAssignmentStep] = useState<'select' | 'install'>('select');
+  const [selectedEquipmentForInstall, setSelectedEquipmentForInstall] = useState<Equipment | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [installationId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const params = installationId ? { installationId } : {};
-      const [systemsRes, equipmentRes, maintenanceRes] = await Promise.all([
-        api.get('/electronic-security/systems', { params }),
-        api.get('/electronic-security/equipments', { params }),
-        api.get('/electronic-security/maintenance', { params }),
+      const [installationsRes, systemsRes, equipmentsRes, statsRes, typesRes] = await Promise.all([
+        installationService.getAll(),
+        api.get('/electronic-security/systems'),
+        api.get('/inventory/equipments?available=true'),
+        api.get('/electronic-security/stats'),
+        api.get('/admin/equipment-types'),
       ]);
-      if (systemsRes.data.success) setSystems(systemsRes.data.data);
-      if (equipmentRes.data.success) setEquipments(equipmentRes.data.data);
-      if (maintenanceRes.data.success) setMaintenances(maintenanceRes.data.data);
+      
+      if (installationsRes.success) setInstallations(installationsRes.data || []);
+      if (systemsRes.data.success) setSystems(systemsRes.data.data || []);
+      if (equipmentsRes.data.success) setAvailableEquipments(equipmentsRes.data.data || []);
+      if (statsRes.data.success) setStats(statsRes.data.data);
+      if (typesRes.data.success) setEquipmentTypes(typesRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleSave = async (type: string, data: any) => {
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const statsMemo = useMemo(() => ({
+    cctv: systems.filter(s => s.type === 'CCTV').length,
+    accessControl: systems.filter(s => s.type === 'ACCESS_CONTROL').length,
+    intrusion: systems.filter(s => s.type === 'INTRUSION').length,
+    fire: systems.filter(s => s.type === 'FIRE' || s.type === 'FIRE_DETECTION').length,
+    other: systems.filter(s => !['CCTV', 'ACCESS_CONTROL', 'INTRUSION', 'FIRE', 'FIRE_DETECTION'].includes(s.type)).length,
+  }), [systems]);
+
+  const systemsByInstallation = useMemo(() => {
+    const grouped: Record<string, SecuritySystem[]> = {};
+    systems.forEach(system => {
+      const instId = system.installation?.id || 'unassigned';
+      if (!grouped[instId]) grouped[instId] = [];
+      grouped[instId].push(system);
+    });
+    return grouped;
+  }, [systems]);
+
+  const handleSaveSystem = useCallback(async (data: any) => {
     try {
-      const endpoint = type === 'system' ? '/electronic-security/systems' : type === 'equipment' ? '/electronic-security/equipments' : '/electronic-security/maintenance';
-      if (editingItem) {
-        await api.put(`${endpoint}/${editingItem.id}`, data);
+      if (systemDialogType === 'create') {
+        await api.post('/electronic-security/systems', {
+          ...data,
+          installationId: selectedInstallation?.id,
+        });
       } else {
-        await api.post(endpoint, data);
+        await api.put(`/electronic-security/systems/${editingSystem?.id}`, data);
       }
-      setDialogOpen(false);
-      setEditingItem(null);
+      setSystemDialogOpen(false);
+      setEditingSystem(null);
       fetchData();
     } catch (error) {
-      console.error('Error saving:', error);
+      console.error('Error saving system:', error);
     }
-  };
+  }, [systemDialogType, selectedInstallation, editingSystem, fetchData]);
 
-  const handleDelete = async (type: string, id: string) => {
-    if (!confirm('¿Está seguro de eliminar?')) return;
+  const handleDeleteSystem = useCallback(async (id: string) => {
+    if (!confirm('¿Está seguro de eliminar este sistema?')) return;
     try {
-      const endpoint = type === 'system' ? '/electronic-security/systems' : '/electronic-security/equipments';
-      await api.delete(`${endpoint}/${id}`);
+      await api.delete(`/electronic-security/systems/${id}`);
       fetchData();
     } catch (error) {
-      console.error('Error deleting:', error);
+      console.error('Error deleting system:', error);
     }
-  };
+  }, [fetchData]);
 
-  const openEdit = (type: 'system' | 'equipment' | 'maintenance', item: any) => {
-    setEditingItem(item);
-    setDialogType(type);
-    setDialogOpen(true);
-  };
+  const handleSelectEquipment = useCallback(async (data: { equipmentId: string; securitySystemId: string }) => {
+    const equipment = availableEquipments.find(e => e.id === data.equipmentId);
+    if (!equipment) return;
+    setSelectedEquipmentForInstall(equipment);
+    setSelectedSystem(systems.find(s => s.id === data.securitySystemId) || null);
+    setEquipmentAssignmentStep('install');
+  }, [availableEquipments, systems]);
 
-  const openCreate = (type: 'system' | 'equipment' | 'maintenance') => {
-    setEditingItem(null);
-    setDialogType(type);
-    setDialogOpen(true);
-  };
+  const handleInstallEquipment = useCallback(async (data: any) => {
+    if (!selectedSystem || !selectedEquipmentForInstall) return;
+    try {
+      await api.post('/electronic-security/equipments/assign', {
+        equipmentId: selectedEquipmentForInstall.id,
+        securitySystemId: selectedSystem.id,
+        installationId: selectedSystem.installation?.id,
+        location: data.location,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        ipAddress: data.ipAddress,
+        macAddress: data.macAddress,
+        firmwareVersion: data.firmwareVersion,
+        notes: data.notes,
+      });
+      setEquipmentDialogOpen(false);
+      setSelectedSystem(null);
+      setSelectedEquipmentForInstall(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error installing equipment:', error);
+    }
+  }, [selectedSystem, selectedEquipmentForInstall, fetchData]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(value);
+  const openCreateSystem = useCallback((installation: Installation) => {
+    setSelectedInstallation(installation);
+    setSystemDialogType('create');
+    setEditingSystem(null);
+    setSystemDialogOpen(true);
+  }, []);
+
+  const openEditSystem = useCallback((system: SecuritySystem) => {
+    setEditingSystem(system);
+    setSystemDialogType('edit');
+    setSystemDialogOpen(true);
+  }, []);
+
+  const openEquipmentDialog = useCallback((system: SecuritySystem) => {
+    setSelectedSystem(system);
+    setEquipmentAssignmentStep('select');
+    setSelectedEquipmentForInstall(null);
+    setEquipmentDialogOpen(true);
+  }, []);
+
+  const getSystemIcon = (type: string) => {
+    switch (type) {
+      case 'CCTV': return <Monitor className="h-5 w-5" />;
+      case 'ACCESS_CONTROL': return <ShieldAlert className="h-5 w-5" />;
+      case 'INTRUSION': return <Cpu className="h-5 w-5" />;
+      default: return <Server className="h-5 w-5" />;
+    }
   };
 
   if (isLoading) {
@@ -149,427 +225,242 @@ export default function ElectronicSecurityPage({ installationId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <Tabs defaultValue="systems" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="systems">Sistemas ({systems.length})</TabsTrigger>
-          <TabsTrigger value="equipments">Equipos ({equipments.length})</TabsTrigger>
-          <TabsTrigger value="maintenance">Mantenimiento ({maintenances.length})</TabsTrigger>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Seguridad Electrónica</h1>
+        <p className="text-muted-foreground">Gestión de sistemas de seguridad electrónica por instalación</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Sistemas</CardTitle>
+            <Server className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalSystems || 0}</div>
+            <p className="text-xs text-muted-foreground">sistemas registrados</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700">CCTV</CardTitle>
+            <Monitor className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700">{statsMemo.cctv}</div>
+            <p className="text-xs text-blue-600">cámaras</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Control Acceso</CardTitle>
+            <ShieldAlert className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700">{statsMemo.accessControl}</div>
+            <p className="text-xs text-green-600">control acceso</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-orange-50 border-orange-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-700">Intrusión</CardTitle>
+            <Cpu className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-700">{statsMemo.intrusion}</div>
+            <p className="text-xs text-orange-600">paneles</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-red-50 border-red-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-red-700">Equipos</CardTitle>
+            <HardDrive className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-700">{stats?.stats?.activeEquipments || 0}</div>
+            <p className="text-xs text-red-600">equipos activos</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">Resumen por Instalación</TabsTrigger>
+          <TabsTrigger value="systems">Todos los Sistemas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          {installations.map((installation) => {
+            const instSystems = systemsByInstallation[installation.id] || [];
+            return (
+              <Card key={installation.id}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building2 className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{installation.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{installation.city}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{instSystems.length} sistemas</Badge>
+                    <Button size="sm" onClick={() => openCreateSystem(installation)}>
+                      <Plus className="h-4 w-4 mr-2" />Agregar Sistema
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {instSystems.length === 0 ? (
+                    <p className="text-center py-4 text-muted-foreground">
+                      No hay sistemas de seguridad electrónica en esta instalación
+                    </p>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {instSystems.map((system) => (
+                        <div key={system.id} className="border rounded-lg p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1.5 rounded ${system.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
+                                {getSystemIcon(system.type)}
+                              </div>
+                              <div>
+                                <p className="font-medium">{system.name}</p>
+                                <p className="text-xs text-muted-foreground">{system.type}</p>
+                              </div>
+                            </div>
+                            <Badge className={system.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                              {system.isActive ? 'Activo' : 'Inactivo'}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">
+                              {system._count?.equipments || 0} equipos
+                            </span>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEquipmentDialog(system)} aria-label="Asignar equipos al sistema">
+                                <HardDrive className="h-3 w-3" aria-hidden="true" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSystem(system)} aria-label="Editar sistema">
+                                <Pencil className="h-3 w-3" aria-hidden="true" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteSystem(system.id)} aria-label="Eliminar sistema">
+                                <Trash2 className="h-3 w-3" aria-hidden="true" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </TabsContent>
 
         <TabsContent value="systems" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Sistemas de Seguridad</CardTitle>
-                <Button onClick={() => openCreate('system')} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />Nuevo Sistema
-                </Button>
-              </div>
+              <CardTitle>Todos los Sistemas de Seguridad Electrónica</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {systems.map((system) => (
-                  <div key={system.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Server className="h-5 w-5 text-blue-600" />
+              {systems.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No hay sistemas registrados</p>
+              ) : (
+                <div className="space-y-3">
+                  {systems.map((system) => (
+                    <div key={system.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-lg ${system.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
+                          {getSystemIcon(system.type)}
                         </div>
                         <div>
-                          <h4 className="font-semibold">{system.name}</h4>
-                          <p className="text-sm text-muted-foreground">{system.type}</p>
+                          <p className="font-medium">{system.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {system.type} • {system.installation?.name || 'Sin instalación'}
+                            {system.location && ` • ${system.location}`}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit('system', system)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete('system', system.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{system._count?.equipments || 0} equipos</Badge>
+                        <Badge className={system.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                          {system.isActive ? 'Activo' : 'Inactivo'}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="mt-3 text-sm text-muted-foreground space-y-1">
-                      {system.brand && <p>Marca: {system.brand}</p>}
-                      <p>Equipos: {system._count?.equipments || 0}</p>
-                      <p>Mantenimientos: {system._count?.maintenanceSchedules || 0}</p>
-                    </div>
-                    <div className="mt-2">
-                      <Badge className={system.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                        {system.isActive ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                {systems.length === 0 && (
-                  <div className="col-span-3 text-center py-8 text-muted-foreground">
-                    No hay sistemas registrados
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="equipments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Equipos</CardTitle>
-                <Button onClick={() => openCreate('equipment')} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />Nuevo Equipo
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {equipments.map((equipment) => (
-                  <div key={equipment.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${equipment.status === 'ACTIVE' ? 'bg-green-100' : equipment.status === 'IN_REPAIR' ? 'bg-yellow-100' : 'bg-gray-100'}`}>
-                        <Cpu className={`h-5 w-5 ${equipment.status === 'ACTIVE' ? 'text-green-600' : equipment.status === 'IN_REPAIR' ? 'text-yellow-600' : 'text-gray-500'}`} />
-                      </div>
-                      <div>
-                        <p className="font-medium">{equipment.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {equipment.type} • {equipment.brand || 'N/A'} • {equipment.location || 'Sin ubicación'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          IP: {equipment.ipAddress || 'N/A'} • MAC: {equipment.macAddress || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {equipment.specifications?.cost && (
-                        <span className="text-sm font-medium text-blue-600">
-                          {formatCurrency(equipment.specifications.cost)}
-                        </span>
-                      )}
-                      <Badge className={equipment.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : equipment.status === 'IN_REPAIR' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}>
-                        {getStatusText(equipment.status)}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit('equipment', equipment)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete('equipment', equipment.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {equipments.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No hay equipos registrados
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="maintenance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Programación de Mantenimiento</CardTitle>
-                <Button onClick={() => openCreate('maintenance')} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />Nuevo Mantenimiento
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {maintenances.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${m.status === 'COMPLETED' ? 'bg-green-100' : m.status === 'IN_PROGRESS' ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                        <Wrench className={`h-5 w-5 ${m.status === 'COMPLETED' ? 'text-green-600' : m.status === 'IN_PROGRESS' ? 'text-blue-600' : 'text-orange-600'}`} />
-                      </div>
-                      <div>
-                        <p className="font-medium">{m.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {m.type} • {m.frequency} • {m.equipment?.name || m.securitySystem?.name || 'Sin equipo'}
-                        </p>
-                        {m.provider && <p className="text-xs text-muted-foreground">Proveedor: {m.provider}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        {m.cost && <p className="text-sm font-medium text-blue-600">{formatCurrency(m.cost)}</p>}
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(m.scheduledDate).toLocaleDateString('es-CO')}
-                        </p>
-                      </div>
-                      <Badge className={m.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' : m.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : m.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}>
-                        {getStatusText(m.status)}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit('maintenance', m)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {maintenances.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No hay mantenimientos programados
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={systemDialogOpen} onOpenChange={setSystemDialogOpen}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? 'Editar' : 'Nuevo'} {dialogType === 'system' ? 'Sistema' : dialogType === 'equipment' ? 'Equipo' : 'Mantenimiento'}
+              {systemDialogType === 'create' ? 'Nuevo Sistema' : 'Editar Sistema'}
             </DialogTitle>
             <DialogDescription>
-              Complete todos los campos requeridos para {dialogType === 'system' ? 'registrar un sistema de seguridad' : dialogType === 'equipment' ? 'registrar un equipo' : 'programar un mantenimiento'}.
+              {systemDialogType === 'create' && selectedInstallation && (
+                <span>Agregar sistema a {selectedInstallation.name}</span>
+              )}
             </DialogDescription>
           </DialogHeader>
-          {dialogType === 'system' && <SystemForm system={editingItem} installationId={installationId} onSubmit={(d: any) => handleSave('system', d)} onCancel={() => setDialogOpen(false)} />}
-          {dialogType === 'equipment' && <EquipmentForm equipment={editingItem} systems={systems} onSubmit={(d: any) => handleSave('equipment', d)} onCancel={() => setDialogOpen(false)} />}
-          {dialogType === 'maintenance' && <MaintenanceForm maintenance={editingItem} systems={systems} onSubmit={(d: any) => handleSave('maintenance', d)} onCancel={() => setDialogOpen(false)} />}
+          <Suspense fallback={<FormSkeleton />}>
+            <ElectronicSystemForm
+              system={editingSystem as any}
+              installationId={systemDialogType === 'create' ? selectedInstallation?.id : editingSystem?.installation?.id}
+              onSubmit={handleSaveSystem}
+              onCancel={() => setSystemDialogOpen(false)}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={equipmentDialogOpen} onOpenChange={setEquipmentDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {equipmentAssignmentStep === 'select' ? 'Seleccionar Equipo' : 'Configurar Instalación'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSystem && (
+                <span>
+                  {equipmentAssignmentStep === 'select' 
+                    ? `Equipos disponibles para ${selectedSystem.name}` 
+                    : `Configurando equipo para ${selectedSystem.name}`}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {equipmentAssignmentStep === 'select' ? (
+            <EquipmentSelectorForm
+              systems={systems as any}
+              equipmentTypes={equipmentTypes}
+              onSubmit={handleSelectEquipment}
+              onCancel={() => setEquipmentDialogOpen(false)}
+              preselectedSystemId={selectedSystem?.id}
+            />
+          ) : (
+            selectedEquipmentForInstall && (
+              <EquipmentInstallationForm
+                equipment={selectedEquipmentForInstall as any}
+                systems={systems as any}
+                equipmentTypes={equipmentTypes}
+                onSubmit={handleInstallEquipment}
+                onCancel={() => setEquipmentAssignmentStep('select')}
+                preselectedSystemId={selectedSystem?.id}
+              />
+            )
+          )}
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function SystemForm({ system, installationId, onSubmit, onCancel }: { system?: any; installationId?: string; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecuritySystemFormData>({
-    resolver: zodResolver(securitySystemSchema),
-    defaultValues: {
-      name: system?.name || '',
-      type: system?.type || '',
-      description: system?.description || '',
-      installationDate: system?.installationDate ? new Date(system.installationDate).toISOString().split('T')[0] : '',
-      isActive: system?.isActive ?? true,
-      installationId: system?.installationId || installationId || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label>Tipo de Sistema *</Label>
-        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('type')}>
-          <option value="">Seleccionar tipo</option>
-          <option value="CCTV">CCTV - Circuito Cerrado de Televisión</option>
-          <option value="CONTROL_ACCESO">Control de Acceso</option>
-          <option value="INTRUSION">Intrusión / Alarmas</option>
-          <option value="FIRE">Detección de Incendio</option>
-          <option value="VIDEOWALL">Videowall</option>
-          <option value="CITOFONIA">Citofonía</option>
-          <option value="RONDAS">Rondas</option>
-          <option value="OTRO">Otro</option>
-        </select>
-        {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre del Sistema</Label>
-          <Input {...register('name')} placeholder="Ej: CCTV Principal" />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Fecha de Instalación</Label>
-          <Input type="date" {...register('installationDate')} />
-        </div>
-      </div>
-      <div>
-        <Label>Descripción</Label>
-        <Textarea {...register('description')} rows={3} placeholder="Descripción detallada del sistema..." />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function EquipmentForm({ equipment, systems, onSubmit, onCancel }: any) {
-  const { register, handleSubmit, formState: { errors } } = useForm<EquipmentFormData>({
-    resolver: zodResolver(equipmentSchema),
-    defaultValues: {
-      name: equipment?.name || '',
-      type: equipment?.type || '',
-      brand: equipment?.brand || '',
-      model: equipment?.model || '',
-      serialNumber: equipment?.serialNumber || '',
-      status: (equipment?.status as any) || 'ACTIVE',
-      location: equipment?.location || '',
-      ipAddress: equipment?.ipAddress || '',
-      macAddress: equipment?.macAddress || '',
-      specifications: { cost: equipment?.specifications?.cost },
-      securitySystemId: equipment?.securitySystemId || systems[0]?.id || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre *</Label>
-          <Input {...register('name')} />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Tipo *</Label>
-          <Input {...register('type')} placeholder="Cámara, Sensor, Lector" />
-          {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Marca</Label>
-          <Input {...register('brand')} />
-        </div>
-        <div>
-          <Label>Modelo</Label>
-          <Input {...register('model')} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Serial</Label>
-          <Input {...register('serialNumber')} />
-        </div>
-        <div>
-          <Label>Costo (COP)</Label>
-          <Input type="number" {...register('specifications.cost')} placeholder="0" />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>IP</Label>
-          <Input {...register('ipAddress')} placeholder="192.168.1.100" />
-          {errors.ipAddress && <p className="text-sm text-red-500">{errors.ipAddress.message}</p>}
-        </div>
-        <div>
-          <Label>MAC</Label>
-          <Input {...register('macAddress')} placeholder="00:00:00:00:00:00" />
-          {errors.macAddress && <p className="text-sm text-red-500">{errors.macAddress.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="ACTIVE">Activo</option>
-            <option value="INACTIVE">Inactivo</option>
-            <option value="IN_REPAIR">En Reparación</option>
-            <option value="DECOMMISSIONED">Dado de Baja</option>
-          </select>
-        </div>
-        <div>
-          <Label>Ubicación</Label>
-          <Input {...register('location')} />
-        </div>
-      </div>
-      <div>
-        <Label>Sistema *</Label>
-        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('securitySystemId')}>
-          <option value="">Seleccionar</option>
-          {systems.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        {errors.securitySystemId && <p className="text-sm text-red-500">{errors.securitySystemId.message}</p>}
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function MaintenanceForm({ maintenance, systems, onSubmit, onCancel }: any) {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<MaintenanceFormData>({
-    resolver: zodResolver(maintenanceSchema),
-    defaultValues: {
-      title: maintenance?.title || '',
-      type: maintenance?.type || '',
-      frequency: maintenance?.frequency || '',
-      status: (maintenance?.status as any) || 'SCHEDULED',
-      scheduledDate: maintenance?.scheduledDate ? new Date(maintenance.scheduledDate).toISOString().split('T')[0] : '',
-      completedDate: maintenance?.completedDate ? new Date(maintenance.completedDate).toISOString().split('T')[0] : '',
-      cost: maintenance?.cost,
-      provider: maintenance?.provider || '',
-      notes: '',
-      securitySystemId: maintenance?.securitySystem?.id || systems[0]?.id || '',
-      equipmentId: undefined,
-    },
-  });
-
-  const status = watch('status');
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label>Título *</Label>
-        <Input {...register('title')} />
-        {errors.title && <p className="text-sm text-red-500">{errors.title.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo *</Label>
-          <Input {...register('type')} placeholder="Preventivo, Correctivo" />
-          {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
-        </div>
-        <div>
-          <Label>Frecuencia *</Label>
-          <Input {...register('frequency')} placeholder="Mensual, Trimestral" />
-          {errors.frequency && <p className="text-sm text-red-500">{errors.frequency.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Fecha Programada *</Label>
-          <Input type="date" {...register('scheduledDate')} />
-          {errors.scheduledDate && <p className="text-sm text-red-500">{errors.scheduledDate.message}</p>}
-        </div>
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="SCHEDULED">Programado</option>
-            <option value="IN_PROGRESS">En Progreso</option>
-            <option value="COMPLETED">Completado</option>
-            <option value="CANCELLED">Cancelado</option>
-          </select>
-        </div>
-      </div>
-      {status === 'COMPLETED' && (
-        <div>
-          <Label>Fecha de Completado</Label>
-          <Input type="date" {...register('completedDate')} />
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Costo (COP)</Label>
-          <Input type="number" {...register('cost')} placeholder="0" />
-        </div>
-        <div>
-          <Label>Proveedor</Label>
-          <Input {...register('provider')} />
-        </div>
-      </div>
-      <div>
-        <Label>Sistema</Label>
-        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('securitySystemId')}>
-          <option value="">Seleccionar</option>
-          {systems.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
   );
 }

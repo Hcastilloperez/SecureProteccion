@@ -93,19 +93,22 @@ export function EquipmentForm({
   }, [selectedEquipmentTypeId, equipmentTypes, setValue]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-label="Formulario de equipo">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Nombre del Equipo *</Label>
-          <Input {...register('name')} placeholder="Ej: Cámara IP Principal" />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+          <Label htmlFor="equipment-name">Nombre del Equipo *</Label>
+          <Input id="equipment-name" {...register('name')} placeholder="Ej: Cámara IP Principal" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'equipment-name-error' : undefined} />
+          {errors.name && <p id="equipment-name-error" className="text-sm text-red-500" role="alert">{errors.name.message}</p>}
         </div>
         <div>
-          <Label>Tipo de Equipo *</Label>
+          <Label htmlFor="equipment-type">Tipo de Equipo *</Label>
           {showAllFields && equipmentTypes.length > 0 ? (
             <select
+              id="equipment-type"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               {...register('equipmentTypeId')}
+              aria-invalid={!!errors.equipmentTypeId}
+              aria-describedby={errors.equipmentTypeId ? 'equipment-type-error' : undefined}
             >
               <option value="">Seleccione un tipo de equipo</option>
               {equipmentTypes.filter(et => et.isActive).map((et) => (
@@ -113,24 +116,25 @@ export function EquipmentForm({
               ))}
             </select>
           ) : (
-            <Input {...register('type')} placeholder="Ej: Cámara, DVR, Control de acceso" />
+            <Input id="equipment-type" {...register('type')} placeholder="Ej: Cámara, DVR, Control de acceso" />
           )}
-          {errors.equipmentTypeId && <p className="text-sm text-red-500">{errors.equipmentTypeId.message}</p>}
+          {errors.equipmentTypeId && <p id="equipment-type-error" className="text-sm text-red-500" role="alert">{errors.equipmentTypeId.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <Label>Marca</Label>
-          <Input {...register('brand')} />
+          <Label htmlFor="equipment-brand">Marca</Label>
+          <Input id="equipment-brand" {...register('brand')} />
         </div>
         <div>
-          <Label>Modelo</Label>
-          <Input {...register('model')} />
+          <Label htmlFor="equipment-model">Modelo</Label>
+          <Input id="equipment-model" {...register('model')} />
         </div>
         <div>
-          <Label>Serial</Label>
-          <Input {...register('serialNumber')} />
+          <Label htmlFor="equipment-serial">Serial</Label>
+          <Input id="equipment-serial" {...register('serialNumber')} aria-invalid={!!errors.serialNumber} aria-describedby={errors.serialNumber ? 'equipment-serial-error' : undefined} />
+          {errors.serialNumber && <p id="equipment-serial-error" className="text-sm text-red-500" role="alert">{errors.serialNumber.message}</p>}
         </div>
       </div>
 
@@ -138,8 +142,9 @@ export function EquipmentForm({
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Contrato de Inversión</Label>
+              <Label htmlFor="equipment-contract">Contrato de Inversión</Label>
               <select
+                id="equipment-contract"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 {...register('investmentContractId')}
               >
@@ -150,18 +155,18 @@ export function EquipmentForm({
               </select>
             </div>
             <div>
-              <Label>Fecha de Entrega</Label>
-              <Input type="date" {...register('deliveryDate')} />
+              <Label htmlFor="equipment-delivery">Fecha de Entrega</Label>
+              <Input id="equipment-delivery" type="date" {...register('deliveryDate')} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Fecha de Compra</Label>
-              <Input type="date" {...register('purchaseDate')} />
+              <Label htmlFor="equipment-purchase">Fecha de Compra</Label>
+              <Input id="equipment-purchase" type="date" {...register('purchaseDate')} />
             </div>
             <div>
-              <Label>Costo (COP)</Label>
-              <Input type="number" {...register('specifications.cost')} placeholder="0" />
+              <Label htmlFor="equipment-cost">Costo (COP)</Label>
+              <Input id="equipment-cost" type="number" {...register('specifications.cost')} placeholder="0" />
             </div>
           </div>
         </>
@@ -169,8 +174,9 @@ export function EquipmentForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Estado</Label>
+          <Label htmlFor="equipment-status">Estado</Label>
           <select
+            id="equipment-status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             {...register('status')}
           >
@@ -182,8 +188,8 @@ export function EquipmentForm({
           </select>
         </div>
         <div>
-          <Label>Ubicación (Texto)</Label>
-          <Input {...register('location')} placeholder="Ej: Bodega Central" />
+          <Label htmlFor="equipment-location">Ubicación (Texto)</Label>
+          <Input id="equipment-location" {...register('location')} placeholder="Ej: Bodega Central" />
         </div>
       </div>
 
@@ -191,27 +197,29 @@ export function EquipmentForm({
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>IP</Label>
-              <Input {...register('ipAddress')} placeholder="192.168.1.100" />
+              <Label htmlFor="equipment-ip">IP</Label>
+              <Input id="equipment-ip" {...register('ipAddress')} placeholder="192.168.1.100" aria-invalid={!!errors.ipAddress} aria-describedby={errors.ipAddress ? 'equipment-ip-error' : undefined} />
+              {errors.ipAddress && <p id="equipment-ip-error" className="text-sm text-red-500" role="alert">{errors.ipAddress.message}</p>}
             </div>
             <div>
-              <Label>MAC</Label>
-              <Input {...register('macAddress')} placeholder="00:00:00:00:00:00" />
+              <Label htmlFor="equipment-mac">MAC</Label>
+              <Input id="equipment-mac" {...register('macAddress')} placeholder="00:00:00:00:00:00" aria-invalid={!!errors.macAddress} aria-describedby={errors.macAddress ? 'equipment-mac-error' : undefined} />
+              {errors.macAddress && <p id="equipment-mac-error" className="text-sm text-red-500" role="alert">{errors.macAddress.message}</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Versión Firmware</Label>
-              <Input {...register('firmwareVersion')} placeholder="Ej: v2.1.0" />
+              <Label htmlFor="equipment-firmware">Versión Firmware</Label>
+              <Input id="equipment-firmware" {...register('firmwareVersion')} placeholder="Ej: v2.1.0" />
             </div>
             <div>
-              <Label>Fecha Vencimiento</Label>
-              <Input type="date" {...register('expirationDate')} />
+              <Label htmlFor="equipment-expiration">Fecha Vencimiento</Label>
+              <Input id="equipment-expiration" type="date" {...register('expirationDate')} />
             </div>
           </div>
           <div>
-            <Label>Notas</Label>
-            <Textarea {...register('notes')} rows={3} placeholder="Notas adicionales..." />
+            <Label htmlFor="equipment-notes">Notas</Label>
+            <Textarea id="equipment-notes" {...register('notes')} rows={3} placeholder="Notas adicionales..." />
           </div>
         </>
       )}

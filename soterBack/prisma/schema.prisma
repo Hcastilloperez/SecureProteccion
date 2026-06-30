@@ -112,6 +112,8 @@ model User {
   lastName     String
   phone        String?
   role         RoleType
+  roleId       String?
+  roleData     Role?      @relation("UserRole", fields: [roleId], references: [id])
   status       UserStatus @default(ACTIVE)
   installationId String?
   installation Installation? @relation(fields: [installationId], references: [id])
@@ -139,6 +141,8 @@ model Role {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  users       User[]   @relation("UserRole")
 
   @@map("roles")
 }
@@ -690,4 +694,16 @@ model Configuration {
   updatedAt   DateTime @updatedAt
 
   @@map("configurations")
+}
+
+model PermissionDefinition {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("permission_definitions")
 }

@@ -1,16 +1,13 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { securityGuardSchema, securityPostSchema, securityCompanySchema, SecurityGuardFormData, SecurityPostFormData, SecurityCompanyFormData } from '@/lib/schemas';
-import { Plus, Shield, Building, Pencil, Trash2, MapPin } from 'lucide-react';
+import { CompanyForm, PostForm, GuardForm } from '@/components/physical-security';
+import { Shield, Building, Pencil, Trash2, MapPin, Plus } from 'lucide-react';
 import api from '@/config/axios';
 
 interface SecurityGuard {
@@ -66,6 +63,18 @@ interface SecurityCompany {
 interface Installation {
   id: string;
   name: string;
+}
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="animate-pulse space-y-3">
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+      </div>
+    </div>
+  );
 }
 
 export default function PhysicalSecurityPage() {
@@ -211,11 +220,11 @@ export default function PhysicalSecurityPage() {
                       <Badge className={company.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
                         {company.isActive ? 'Activo' : 'Inactivo'}
                       </Badge>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('company', company)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('company', company)} aria-label="Editar empresa">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('company', company.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('company', company.id)} aria-label="Eliminar empresa">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -269,14 +278,14 @@ export default function PhysicalSecurityPage() {
                         {post.status === 'ACTIVE' ? 'Activo' :
                          post.status === 'PENDING' ? 'Pendiente' :
                          post.status === 'SUSPENDED' ? 'Suspendido' : 'Inactivo'}
-                      </Badge>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('post', post)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('post', post.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                       </Badge>
+                       <Button variant="ghost" size="icon" onClick={() => openEdit('post', post)} aria-label="Editar puesto">
+                         <Pencil className="h-4 w-4" aria-hidden="true" />
+                       </Button>
+                       <Button variant="ghost" size="icon" onClick={() => handleDelete('post', post.id)} aria-label="Eliminar puesto">
+                         <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+                       </Button>
+                     </div>
                   </div>
                 ))}
                 {posts.length === 0 && (
@@ -317,11 +326,11 @@ export default function PhysicalSecurityPage() {
                       <Badge className={guard.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
                         {guard.isActive ? 'Activo' : 'Inactivo'}
                       </Badge>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit('guard', guard)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => openEdit('guard', guard)} aria-label="Editar vigilante">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete('guard', guard.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete('guard', guard.id)} aria-label="Eliminar vigilante">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -343,297 +352,35 @@ export default function PhysicalSecurityPage() {
             </DialogTitle>
             <DialogDescription>Complete todos los campos requeridos.</DialogDescription>
           </DialogHeader>
-          {dialogType === 'company' && (
-            <CompanyForm
-              company={editingItem}
-              onSubmit={(d) => handleSave('company', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
-          {dialogType === 'post' && (
-            <PostForm
-              post={editingItem}
-              companies={companies}
-              installations={installations}
-              onSubmit={(d) => handleSave('post', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
-          {dialogType === 'guard' && (
-            <GuardForm
-              guard={editingItem}
-              posts={posts}
-              installations={installations}
-              onSubmit={(d) => handleSave('guard', d)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          )}
+          <Suspense fallback={<FormSkeleton />}>
+            {dialogType === 'company' && (
+              <CompanyForm
+                company={editingItem}
+                onSubmit={(d) => handleSave('company', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+            {dialogType === 'post' && (
+              <PostForm
+                post={editingItem}
+                companies={companies}
+                installations={installations}
+                onSubmit={(d) => handleSave('post', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+            {dialogType === 'guard' && (
+              <GuardForm
+                guard={editingItem}
+                posts={posts}
+                installations={installations}
+                onSubmit={(d) => handleSave('guard', d)}
+                onCancel={() => setDialogOpen(false)}
+              />
+            )}
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function CompanyForm({ company, onSubmit, onCancel }: { company?: SecurityCompany; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecurityCompanyFormData>({
-    resolver: zodResolver(securityCompanySchema),
-    defaultValues: {
-      name: company?.name || '',
-      nit: company?.nit || '',
-      legalRepresentative: company?.legalRepresentative || '',
-      contractNumber: company?.contractNumber || '',
-      contractStartDate: company?.contractStartDate ? new Date(company.contractStartDate).toISOString().split('T')[0] : '',
-      contractEndDate: company?.contractEndDate ? new Date(company.contractEndDate).toISOString().split('T')[0] : '',
-      contractAmount: company?.contractAmount || undefined,
-      phone: company?.phone || '',
-      email: company?.email || '',
-      address: company?.address || '',
-      isActive: company?.isActive ?? true,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre *</Label>
-          <Input {...register('name')} />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>NIT *</Label>
-          <Input {...register('nit')} />
-          {errors.nit && <p className="text-sm text-red-500">{errors.nit.message}</p>}
-        </div>
-      </div>
-      <div>
-        <Label>Representante Legal</Label>
-        <Input {...register('legalRepresentative')} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Número de Contrato</Label>
-          <Input {...register('contractNumber')} />
-        </div>
-        <div>
-          <Label>Valor del Contrato (COP)</Label>
-          <Input type="number" {...register('contractAmount')} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Fecha Inicio Contrato</Label>
-          <Input type="date" {...register('contractStartDate')} />
-        </div>
-        <div>
-          <Label>Fecha Fin Contrato</Label>
-          <Input type="date" {...register('contractEndDate')} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Teléfono</Label>
-          <Input {...register('phone')} />
-        </div>
-        <div>
-          <Label>Email</Label>
-          <Input type="email" {...register('email')} />
-        </div>
-      </div>
-      <div>
-        <Label>Dirección</Label>
-        <Input {...register('address')} />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function PostForm({ post, companies, installations, onSubmit, onCancel }: { post?: SecurityPost; companies: SecurityCompany[]; installations: Installation[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecurityPostFormData>({
-    resolver: zodResolver(securityPostSchema),
-    defaultValues: {
-      name: post?.name || '',
-      description: post?.description || '',
-      schedule: post?.schedule || '',
-      guardsRequired: post?.guardsRequired || 1,
-      status: (post?.status as any) || 'PENDING',
-      companyId: post?.company?.id || '',
-      installationId: post?.installation?.id || '',
-      startDate: post?.startDate ? new Date(post.startDate).toISOString().split('T')[0] : '',
-      endDate: post?.endDate ? new Date(post.endDate).toISOString().split('T')[0] : '',
-      isAdditional: post?.isAdditional ?? false,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre del Puesto *</Label>
-          <Input {...register('name')} placeholder="Ej: Entrada Principal" />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Vigilantes Requeridos *</Label>
-          <Input type="number" {...register('guardsRequired')} />
-          {errors.guardsRequired && <p className="text-sm text-red-500">{errors.guardsRequired.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Empresa *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('companyId')}>
-            <option value="">Seleccionar empresa</option>
-            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          {errors.companyId && <p className="text-sm text-red-500">{errors.companyId.message}</p>}
-        </div>
-        <div>
-          <Label>Instalación *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('installationId')}>
-            <option value="">Seleccionar instalación</option>
-            {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-          {errors.installationId && <p className="text-sm text-red-500">{errors.installationId.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Horario</Label>
-          <Input {...register('schedule')} placeholder="Ej: 8x8, 12x12" />
-        </div>
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="PENDING">Pendiente</option>
-            <option value="ACTIVE">Activo</option>
-            <option value="INACTIVE">Inactivo</option>
-            <option value="SUSPENDED">Suspendido</option>
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Fecha Inicio</Label>
-          <Input type="date" {...register('startDate')} />
-        </div>
-        <div>
-          <Label>Fecha Fin Tentativa</Label>
-          <Input type="date" {...register('endDate')} />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" {...register('isAdditional')} className="w-4 h-4" />
-        <Label>Puesto adicional al contrato</Label>
-      </div>
-      <div>
-        <Label>Descripción</Label>
-        <Textarea {...register('description')} rows={2} />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function GuardForm({ guard, posts, installations, onSubmit, onCancel }: { guard?: SecurityGuard; posts: SecurityPost[]; installations: Installation[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecurityGuardFormData>({
-    resolver: zodResolver(securityGuardSchema),
-    defaultValues: {
-      documentType: (guard?.documentType as any) || 'CC',
-      documentNumber: guard?.documentNumber || '',
-      name: guard?.name || '',
-      lastName: guard?.lastName || '',
-      phone: guard?.phone || '',
-      email: guard?.email || '',
-      position: guard?.position || '',
-      securityPostId: guard?.securityPost?.id || '',
-      schedule: guard?.schedule || '',
-      installationId: guard?.installation?.id || '',
-      isActive: guard?.isActive ?? true,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo Documento</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('documentType')}>
-            <option value="CC">Cédula</option>
-            <option value="CE">Cédula Extranjería</option>
-            <option value="PP">Pasaporte</option>
-            <option value="NIT">NIT</option>
-          </select>
-        </div>
-        <div>
-          <Label>Número Documento *</Label>
-          <Input {...register('documentNumber')} />
-          {errors.documentNumber && <p className="text-sm text-red-500">{errors.documentNumber.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre *</Label>
-          <Input {...register('name')} />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Apellido *</Label>
-          <Input {...register('lastName')} />
-          {errors.lastName && <p className="text-sm text-red-500">{errors.lastName.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Teléfono *</Label>
-          <Input {...register('phone')} />
-          {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
-        </div>
-        <div>
-          <Label>Email</Label>
-          <Input type="email" {...register('email')} />
-          {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-        </div>
-      </div>
-      <div>
-        <Label>Cargo *</Label>
-        <Input {...register('position')} placeholder="Ej: Vigilante, Supervisor" />
-        {errors.position && <p className="text-sm text-red-500">{errors.position.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Puesto de Vigilancia</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('securityPostId')}>
-            <option value="">Sin puesto asignado</option>
-            {posts.filter(p => p.status === 'ACTIVE').map((p) => (
-              <option key={p.id} value={p.id}>{p.name} - {p.company.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label>Instalación *</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('installationId')}>
-            <option value="">Seleccionar instalación</option>
-            {installations.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-          {errors.installationId && <p className="text-sm text-red-500">{errors.installationId.message}</p>}
-        </div>
-      </div>
-      <div>
-        <Label>Horario</Label>
-        <Input {...register('schedule')} placeholder="Ej: 8x8, Turno A" />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
   );
 }

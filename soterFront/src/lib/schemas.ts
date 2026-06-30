@@ -340,26 +340,7 @@ export const userSchema = z.object({
 
 export type UserFormData = z.infer<typeof userSchema>;
 
-const permissionsSchema = z.object({
-  all: z.boolean().optional(),
-  incidents: z.boolean().optional(),
-  reports: z.boolean().optional(),
-  users: z.boolean().optional(),
-  physicalSecurity: z.boolean().optional(),
-  electronicSecurity: z.boolean().optional(),
-  investigations: z.boolean().optional(),
-  administrative: z.boolean().optional(),
-  actionsLocalitatives: z.boolean().optional(),
-  movements: z.boolean().optional(),
-  escort: z.boolean().optional(),
-  minuta: z.boolean().optional(),
-  inventory: z.boolean().optional(),
-  installations: z.boolean().optional(),
-  configurations: z.boolean().optional(),
-  auditLogs: z.boolean().optional(),
-  securityStudies: z.boolean().optional(),
-  maintenance: z.boolean().optional(),
-});
+const permissionsSchema = z.record(z.string(), z.boolean().optional());
 
 export const roleSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50),

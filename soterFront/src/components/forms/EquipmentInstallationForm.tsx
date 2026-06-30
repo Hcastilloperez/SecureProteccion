@@ -30,6 +30,7 @@ interface EquipmentInstallationFormProps {
   onSubmit: (data: EquipmentAssignmentFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+  preselectedSystemId?: string;
 }
 
 export function EquipmentInstallationForm({
@@ -39,11 +40,12 @@ export function EquipmentInstallationForm({
   onSubmit,
   onCancel,
   isLoading,
+  preselectedSystemId,
 }: EquipmentInstallationFormProps) {
   const form = useForm<EquipmentAssignmentFormData>({
     resolver: zodResolver(equipmentAssignmentSchema),
     defaultValues: {
-      securitySystemId: equipment.securitySystemId || '',
+      securitySystemId: preselectedSystemId || equipment.securitySystemId || '',
       location: equipment.location || '',
       latitude: equipment.latitude || undefined,
       longitude: equipment.longitude || undefined,
@@ -61,10 +63,10 @@ export function EquipmentInstallationForm({
     : equipmentTypes.find(et => et.systemType === equipment.type);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-label="Formulario de instalación de equipo">
       <div className="p-4 bg-muted rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <Monitor className="h-5 w-5 text-primary" />
+          <Monitor className="h-5 w-5 text-primary" aria-hidden="true" />
           <span className="font-medium">{equipment.name}</span>
         </div>
         <div className="text-sm text-muted-foreground">
@@ -73,70 +75,86 @@ export function EquipmentInstallationForm({
         </div>
       </div>
 
-      <div>
-        <Label>Subsistema de Seguridad *</Label>
-        <select
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          {...register('securitySystemId')}
-        >
-          <option value="">Seleccione un subsistema</option>
-          {systems.map((sys) => (
-            <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
-          ))}
-        </select>
-        {errors.securitySystemId && <p className="text-sm text-red-500">{errors.securitySystemId.message}</p>}
-      </div>
+      {preselectedSystemId ? (
+        <div className="p-3 bg-muted rounded-lg" role="status">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+            <span className="font-medium">Sistema Destino:</span>
+          </div>
+          <p className="font-medium">{systems.find(s => s.id === preselectedSystemId)?.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {systems.find(s => s.id === preselectedSystemId)?.type}
+          </p>
+        </div>
+      ) : (
+        <div>
+          <Label htmlFor="install-security-system">Subsistema de Seguridad *</Label>
+          <select
+            id="install-security-system"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            {...register('securitySystemId')}
+            aria-invalid={!!errors.securitySystemId}
+            aria-describedby={errors.securitySystemId ? 'install-security-system-error' : undefined}
+          >
+            <option value="">Seleccione un subsistema</option>
+            {systems.map((sys) => (
+              <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
+            ))}
+          </select>
+          {errors.securitySystemId && <p id="install-security-system-error" className="text-sm text-red-500" role="alert">{errors.securitySystemId.message}</p>}
+        </div>
+      )}
 
       <div>
-        <Label>Ubicación en Instalación *</Label>
-        <Input {...register('location')} placeholder="Ej: Entrada Principal - Lado Derecho" />
-        {errors.location && <p className="text-sm text-red-500">{errors.location.message}</p>}
+        <Label htmlFor="install-location">Ubicación en Instalación *</Label>
+        <Input id="install-location" {...register('location')} placeholder="Ej: Entrada Principal - Lado Derecho" aria-invalid={!!errors.location} aria-describedby={errors.location ? 'install-location-error' : undefined} />
+        {errors.location && <p id="install-location-error" className="text-sm text-red-500" role="alert">{errors.location.message}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Latitud</Label>
-          <Input type="number" step="any" {...register('latitude')} placeholder="4.7110" />
+          <Label htmlFor="install-latitude">Latitud</Label>
+          <Input id="install-latitude" type="number" step="any" {...register('latitude')} placeholder="4.7110" />
         </div>
         <div>
-          <Label>Longitud</Label>
-          <Input type="number" step="any" {...register('longitude')} placeholder="-74.0721" />
+          <Label htmlFor="install-longitude">Longitud</Label>
+          <Input id="install-longitude" type="number" step="any" {...register('longitude')} placeholder="-74.0721" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>
+          <Label htmlFor="install-ip">
             <span className="flex items-center gap-1">
-              <Wifi className="h-4 w-4" /> IP
+              <Wifi className="h-4 w-4" aria-hidden="true" /> IP
             </span>
           </Label>
-          <Input {...register('ipAddress')} placeholder="192.168.1.100" />
-          {errors.ipAddress && <p className="text-sm text-red-500">{errors.ipAddress.message}</p>}
+          <Input id="install-ip" {...register('ipAddress')} placeholder="192.168.1.100" aria-invalid={!!errors.ipAddress} aria-describedby={errors.ipAddress ? 'install-ip-error' : undefined} />
+          {errors.ipAddress && <p id="install-ip-error" className="text-sm text-red-500" role="alert">{errors.ipAddress.message}</p>}
         </div>
         <div>
-          <Label>
+          <Label htmlFor="install-mac">
             <span className="flex items-center gap-1">
-              <Hash className="h-4 w-4" /> MAC
+              <Hash className="h-4 w-4" aria-hidden="true" /> MAC
             </span>
           </Label>
-          <Input {...register('macAddress')} placeholder="00:00:00:00:00:00" />
-          {errors.macAddress && <p className="text-sm text-red-500">{errors.macAddress.message}</p>}
+          <Input id="install-mac" {...register('macAddress')} placeholder="00:00:00:00:00:00" aria-invalid={!!errors.macAddress} aria-describedby={errors.macAddress ? 'install-mac-error' : undefined} />
+          {errors.macAddress && <p id="install-mac-error" className="text-sm text-red-500" role="alert">{errors.macAddress.message}</p>}
         </div>
       </div>
 
       <div>
-        <Label>
+        <Label htmlFor="install-firmware">
           <span className="flex items-center gap-1">
-            <Cpu className="h-4 w-4" /> Versión Firmware
+            <Cpu className="h-4 w-4" aria-hidden="true" /> Versión Firmware
           </span>
         </Label>
-        <Input {...register('firmwareVersion')} placeholder="Ej: v2.1.0" />
+        <Input id="install-firmware" {...register('firmwareVersion')} placeholder="Ej: v2.1.0" />
       </div>
 
       <div>
-        <Label>Notas de Instalación</Label>
-        <Textarea {...register('notes')} rows={3} placeholder="Notas sobre la instalación..." />
+        <Label htmlFor="install-notes">Notas de Instalación</Label>
+        <Textarea id="install-notes" {...register('notes')} rows={3} placeholder="Notas sobre la instalación..." />
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
@@ -157,6 +175,7 @@ interface EquipmentSelectorFormProps {
   onSubmit: (data: { equipmentId: string; securitySystemId: string }) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+  preselectedSystemId?: string;
 }
 
 export function EquipmentSelectorForm({
@@ -165,10 +184,11 @@ export function EquipmentSelectorForm({
   onSubmit,
   onCancel,
   isLoading,
+  preselectedSystemId,
 }: EquipmentSelectorFormProps) {
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>('');
-  const [selectedSystemId, setSelectedSystemId] = useState<string>('');
+  const [selectedSystemId, setSelectedSystemId] = useState<string>(preselectedSystemId || '');
   const [filterEquipmentType, setFilterEquipmentType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
@@ -219,11 +239,12 @@ export function EquipmentSelectorForm({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="form" aria-label="Selector de equipo">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Filtrar por Tipo de Equipo</Label>
+          <Label htmlFor="selector-filter-type">Filtrar por Tipo de Equipo</Label>
           <select
+            id="selector-filter-type"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={filterEquipmentType}
             onChange={(e) => setFilterEquipmentType(e.target.value)}
@@ -235,10 +256,11 @@ export function EquipmentSelectorForm({
           </select>
         </div>
         <div>
-          <Label>Buscar Equipo</Label>
+          <Label htmlFor="selector-search">Buscar Equipo</Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
+              id="selector-search"
               className="pl-9"
               placeholder="Nombre, marca, modelo, serial..."
               value={searchQuery}
@@ -249,8 +271,13 @@ export function EquipmentSelectorForm({
       </div>
 
       <div>
-        <Label>Equipo Disponible (Standby/Bodega)</Label>
-        <div className="border rounded-lg max-h-60 overflow-y-auto mt-1">
+        <span className="block text-sm font-medium mb-1">Equipo Disponible (Standby/Bodega)</span>
+        <div 
+          className="border rounded-lg max-h-60 overflow-y-auto mt-1" 
+          role="listbox" 
+          aria-label="Lista de equipos disponibles"
+          aria-multiselectable="false"
+        >
           {isLoadingEquipment ? (
             <div className="p-4 text-center text-muted-foreground">Cargando equipos...</div>
           ) : filteredEquipment.length === 0 ? (
@@ -265,11 +292,20 @@ export function EquipmentSelectorForm({
                   selectedEquipmentId === eq.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''
                 }`}
                 onClick={() => setSelectedEquipmentId(eq.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedEquipmentId(eq.id);
+                  }
+                }}
+                role="option"
+                aria-selected={selectedEquipmentId === eq.id}
+                tabIndex={0}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {selectedEquipmentId === eq.id && <Check className="h-4 w-4 text-primary" />}
-                    <Monitor className="h-4 w-4 text-muted-foreground" />
+                    {selectedEquipmentId === eq.id && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                    <Monitor className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span className="font-medium">{eq.name}</span>
                   </div>
                   <span className="text-xs text-muted-foreground">{eq.status}</span>
@@ -284,9 +320,9 @@ export function EquipmentSelectorForm({
       </div>
 
       {selectedEquipment && (
-        <div className="p-3 bg-muted rounded-lg">
+        <div className="p-3 bg-muted rounded-lg" role="status">
           <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-green-600" />
+            <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
             <span className="font-medium">Equipo Seleccionado:</span>
           </div>
           <p className="font-medium">{selectedEquipment.name}</p>
@@ -297,19 +333,33 @@ export function EquipmentSelectorForm({
         </div>
       )}
 
-      <div>
-        <Label>Subsistema de Seguridad *</Label>
-        <select
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={selectedSystemId}
-          onChange={(e) => setSelectedSystemId(e.target.value)}
-        >
-          <option value="">Seleccione un subsistema</option>
-          {systems.map((sys) => (
-            <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
-          ))}
-        </select>
-      </div>
+      {preselectedSystemId ? (
+        <div className="p-3 bg-muted rounded-lg" role="status">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+            <span className="font-medium">Sistema Destino:</span>
+          </div>
+          <p className="font-medium">{systems.find(s => s.id === preselectedSystemId)?.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {systems.find(s => s.id === preselectedSystemId)?.type}
+          </p>
+        </div>
+      ) : (
+        <div>
+          <Label htmlFor="selector-system">Subsistema de Seguridad *</Label>
+          <select
+            id="selector-system"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={selectedSystemId}
+            onChange={(e) => setSelectedSystemId(e.target.value)}
+          >
+            <option value="">Seleccione un subsistema</option>
+            {systems.map((sys) => (
+              <option key={sys.id} value={sys.id}>{sys.name} ({sys.type})</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>

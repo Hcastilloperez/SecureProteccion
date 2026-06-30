@@ -5,17 +5,12 @@ export type Permission =
   | 'minuta'
   | 'incidents'
   | 'installations'
-  | 'installations.view'
-  | 'installations.edit'
-  | 'security_electronic'
+  | 'electronic_security'
+  | 'inventory'
   | 'security_physical'
-  | 'security_physical.view'
-  | 'security_physical.edit'
-  | 'studies'
   | 'escorts'
   | 'admin'
   | 'maintenance'
-  | 'inventory'
   | 'ai';
 
 export type ModuleConfig = {
@@ -31,76 +26,63 @@ export const rolePermissions: Record<RoleType, Permission[]> = {
     'minuta',
     'incidents',
     'installations',
-    'installations.edit',
-    'security_electronic',
+    'electronic_security',
+    'inventory',
     'security_physical',
-    'security_physical.edit',
-    'studies',
     'escorts',
     'admin',
     'maintenance',
-    'inventory',
     'ai',
   ],
   OPERADOR_CENTRO: [
     'dashboard',
     'minuta',
     'installations',
-    'installations.view',
-    'security_physical',
-    'security_physical.view',
+    'electronic_security',
+    'inventory',
   ],
   GERENTE_SEGURIDAD: [
     'dashboard',
     'installations',
-    'installations.edit',
     'security_physical',
-    'security_physical.edit',
-    'studies',
     'escorts',
     'incidents',
     'ai',
+    'electronic_security',
+    'inventory',
   ],
   COORDINADOR_FISICA: [
     'dashboard',
     'incidents',
     'installations',
-    'installations.edit',
-    'studies',
     'security_physical',
-    'security_physical.edit',
+    'electronic_security',
+    'inventory',
   ],
   COORDINADOR_ELECTRONICA: [
     'dashboard',
-    'security_electronic',
-    'maintenance',
+    'incidents',
+    'electronic_security',
     'inventory',
-    'installations',
-    'installations.view',
+    'maintenance',
     'ai',
   ],
   COORDINADOR_INVESTIGACIONES: [
     'dashboard',
     'incidents',
-    'installations',
-    'installations.view',
-    'studies',
-    'security_physical',
-    'security_physical.view',
   ],
   COORDINADOR_ADMINISTRATIVO: [
     'dashboard',
     'installations',
-    'installations.edit',
   ],
   COORDINADOR_ACCIONES_LOCALITATIVAS: [
     'dashboard',
     'installations',
-    'installations.edit',
     'maintenance',
   ],
   ESCOLTA: [
     'dashboard',
+    'escorts',
   ],
   VIGILANTE: [
     'dashboard',

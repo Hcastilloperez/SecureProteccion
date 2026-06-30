@@ -103,6 +103,7 @@ en la munuta una vez escale ya no lo vere mas, pasa automaticamente para coordin
 
 Revisar este flujo para definir las acciones por reles.
 
+cuando los incidentes se validan se le estan dejando de ver en minuta, en la minuta se tienen que ver hasta que no se escale el incidente, que es cuando lo recibe la persona a quien se le escala y continua con el
 
 Roles:
 
@@ -142,6 +143,7 @@ Cordinadores Seguridad:
 Cordinador Seguridad electronica:
 	Dashboard ( de su informacion de interes, de sus modulos)
 	Dashboard
+	incidentes (solo peude ver los incidentes que le fueron enlazados)
 	Seguridad electronica
 	mantenimientos
 	Inventario

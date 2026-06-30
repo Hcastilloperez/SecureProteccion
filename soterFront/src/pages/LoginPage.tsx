@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -42,7 +43,7 @@ export default function LoginPage() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = useCallback(async (data: LoginFormData) => {
     try {
       const response = await authService.login(data);
       if (response.success && response.data) {
@@ -52,12 +53,12 @@ export default function LoginPage() {
     } catch (err: any) {
       alert(err.response?.data?.error || 'Error al iniciar sesión');
     }
-  };
+  }, [dispatch, navigate]);
 
-  const selectUser = (user: typeof TEST_USERS[0]) => {
+  const selectUser = useCallback((user: typeof TEST_USERS[0]) => {
     setValue('email', user.email);
     setValue('password', user.password);
-  };
+  }, [setValue]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">

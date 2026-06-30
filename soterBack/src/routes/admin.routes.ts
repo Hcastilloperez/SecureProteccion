@@ -26,6 +26,10 @@ router.post('/roles', requireRole('ADMIN'), (req, res) => adminController.create
 router.put('/roles/:id', requireRole('ADMIN'), (req, res) => adminController.updateRole(req, res));
 router.delete('/roles/:id', requireRole('ADMIN'), (req, res) => adminController.deleteRole(req, res));
 
+router.get('/permissions', (req, res) => adminController.getPermissionDefinitions(req, res));
+router.post('/permissions', requireRole('ADMIN'), (req, res) => adminController.createPermissionDefinition(req, res));
+router.delete('/permissions/:id', requireRole('ADMIN'), (req, res) => adminController.deletePermissionDefinition(req, res));
+
 router.get('/equipment-types', (req, res) => adminController.getEquipmentTypes(req, res));
 router.post('/equipment-types', requireRole('ADMIN'), (req, res) => adminController.createEquipmentType(req, res));
 router.put('/equipment-types/:id', requireRole('ADMIN'), (req, res) => adminController.updateEquipmentType(req, res));

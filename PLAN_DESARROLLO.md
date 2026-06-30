@@ -228,6 +228,12 @@ Este modulo hace falta la integracion con instalacion
 - [x] Migrar formularios existentes
 - [x] Mensajes de error personalizados
 - [x] Validación en tiempo real
+- [ ] **Validación de campos únicos en BD**
+  - [ ] Validación de documento único (número de documento, cédula)
+  - [ ] Validación de email único
+  - [ ] Validación de serial único
+  - [ ] Validación de código único (inventory codes, contract numbers)
+  - [ ] Mensajes de error amigables para el usuario
 
 ### 13. Notificaciones 🔲
 
@@ -252,6 +258,19 @@ Este modulo hace falta la integracion con instalacion
 - [ ] Lazy loading de componentes
 - [ ] Cache de datos frecuentes
 - [ ] Optimización de queries Prisma
+
+### 16. Accesibilidad (WCAG 2.2) ✅
+
+- [x] Skip link para navegación por teclado
+- [x] aria-label en 57+ botones de icono (Pencil, Trash2, Menu, X, etc.)
+- [x] aria-hidden en iconos decorativos
+- [x] Asociación label-input en formularios (EquipmentForm, EquipmentInstallationForm)
+- [x] aria-invalid y aria-describedby para errores de formulario
+- [x] role="alert" en mensajes de error
+- [x] Contraste de color mejorado (muted-foreground: 222 47% 32%)
+- [x] Focus visible global con :focus-visible
+- [x] Soporte para prefers-reduced-motion
+- [x] aria-current="page" en navegación activa
 
 ---
 
@@ -367,3 +386,13 @@ Leyenda:
 - Endpoint TEST implementado (/ai/configurations/:id/test)
 - Permiso 'ai' agregado a roles: ADMIN, GERENTE_SEGURIDAD, COORDINADOR_ELECTRONICA
 - Menú lateral actualizado con opción "Inteligencia Artificial"
+
+### 2026-06-30 - Mejoras de Accesibilidad (WCAG 2.2)
+- Skip link agregado en Layout.tsx para navegación por teclado
+- aria-label agregado a 57+ botones de icono en todas las páginas
+- aria-hidden agregado a iconos decorativos (Lucide icons)
+- formularios mejorados con aria-invalid, aria-describedby y role="alert"
+- EquipmentForm y EquipmentInstallationForm actualizados con labels asociados
+- Contraste de color mejorado en muted-foreground (pasa WCAG AA para texto pequeño)
+- Estilos de focus global agregados con :focus-visible
+- Soporte para prefers-reduced-motion en animaciones

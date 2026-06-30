@@ -1,11 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,13 +11,17 @@ import { authorityService } from '@/services/authority.service';
 import { securityStudyService } from '@/services/security-study.service';
 import { adminService } from '@/services/admin.service';
 import { Installation, Contact, Authority, SecurityStudy, EquipmentType, Equipment } from '@/types';
-import { ContactFormData, AuthorityFormData, securityStudySchema, SecurityStudyFormData, securitySystemSchema, maintenanceSchema, SecuritySystemFormData, MaintenanceFormData } from '@/lib/schemas';
+import { ContactFormData, AuthorityFormData, SecurityStudyFormData, SecuritySystemFormData, MaintenanceFormData } from '@/lib/schemas';
 import { ContactForm } from '@/components/forms/ContactForm';
 import { AuthorityForm } from '@/components/forms/AuthorityForm';
 import { EquipmentInstallationForm, EquipmentSelectorForm } from '@/components/forms/EquipmentInstallationForm';
+import { ElectronicSystemForm } from '@/components/installation/ElectronicSystemForm';
+import { ElectronicMaintenanceForm } from '@/components/installation/ElectronicMaintenanceForm';
 import { formatDateTime, getStatusText } from '@/lib/utils';
 import { ArrowLeft, Building2, MapPin, Phone, Mail, AlertTriangle, Plus, Pencil, Trash2, FileText, Bot, ShieldCheck, Server, Cpu, Wrench, HardDrive, TrendingUp, Calendar } from 'lucide-react';
 import api from '@/config/axios';
+
+const SecurityStudyForm = lazy(() => import('@/components/installation/StudyForm').then(m => ({ default: m.StudyForm })));
 
 type TabValue = 'contacts' | 'authorities' | 'guards' | 'electronic' | 'studies';
 
@@ -74,6 +73,18 @@ interface SecurityPost {
   endDate?: string;
   company: { id: string; name: string };
   guards: SecurityPostGuard[];
+}
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="h-10 bg-muted rounded animate-pulse" />
+      <div className="h-20 bg-muted rounded animate-pulse" />
+      <div className="h-20 bg-muted rounded animate-pulse" />
+      <div className="h-20 bg-muted rounded animate-pulse" />
+      <div className="h-10 bg-muted rounded animate-pulse" />
+    </div>
+  );
 }
 
 export default function InstallationDetailPage() {
@@ -147,7 +158,7 @@ export default function InstallationDetailPage() {
     }
   };
 
-  const handleSaveContact = async (data: ContactFormData) => {
+  const handleSaveContact = useCallback(async (data: ContactFormData) => {
     try {
       setIsContactSubmitting(true);
       if (editingContact) {
@@ -164,9 +175,9 @@ export default function InstallationDetailPage() {
     } finally {
       setIsContactSubmitting(false);
     }
-  };
+  }, [id, editingContact]);
 
-  const handleDeleteContact = async (contactId: string) => {
+  const handleDeleteContact = useCallback(async (contactId: string) => {
     if (!confirm('¿Está seguro de eliminar este contacto?')) return;
     try {
       await contactService.delete(id!, contactId);
@@ -175,9 +186,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error deleting contact:', error);
     }
-  };
+  }, [id]);
 
-  const handleSaveAuthority = async (data: AuthorityFormData) => {
+  const handleSaveAuthority = useCallback(async (data: AuthorityFormData) => {
     try {
       setIsAuthoritySubmitting(true);
       if (editingAuthority) {
@@ -194,9 +205,9 @@ export default function InstallationDetailPage() {
     } finally {
       setIsAuthoritySubmitting(false);
     }
-  };
+  }, [id, editingAuthority]);
 
-  const handleDeleteAuthority = async (authorityId: string) => {
+  const handleDeleteAuthority = useCallback(async (authorityId: string) => {
     if (!confirm('¿Está seguro de eliminar esta autoridad?')) return;
     try {
       await authorityService.delete(id!, authorityId);
@@ -205,9 +216,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error deleting authority:', error);
     }
-  };
+  }, [id]);
 
-  const handleSaveStudy = async (data: SecurityStudyFormData) => {
+  const handleSaveStudy = useCallback(async (data: SecurityStudyFormData) => {
     try {
       setIsStudySubmitting(true);
       if (editingStudy) {
@@ -224,9 +235,9 @@ export default function InstallationDetailPage() {
     } finally {
       setIsStudySubmitting(false);
     }
-  };
+  }, [id, editingStudy]);
 
-  const handleDeleteStudy = async (studyId: string) => {
+  const handleDeleteStudy = useCallback(async (studyId: string) => {
     if (!confirm('¿Está seguro de eliminar este estudio?')) return;
     try {
       await securityStudyService.delete(id!, studyId);
@@ -235,9 +246,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error deleting study:', error);
     }
-  };
+  }, [id]);
 
-  const handleGenerateAI = async (studyId: string) => {
+  const handleGenerateAI = useCallback(async (studyId: string) => {
     if (!confirm('¿Generar análisis con IA? Esto puede tardar algunos segundos.')) return;
     try {
       setIsGeneratingAI(true);
@@ -250,9 +261,9 @@ export default function InstallationDetailPage() {
     } finally {
       setIsGeneratingAI(false);
     }
-  };
+  }, [id]);
 
-  const handleSaveElectronic = async (type: string, data: any) => {
+  const handleSaveElectronic = useCallback(async (type: string, data: any) => {
     try {
       const endpoint = type === 'system' ? '/electronic-security/systems' : type === 'equipment' ? '/electronic-security/equipments' : '/electronic-security/maintenance';
       if (editingElectronic) {
@@ -273,9 +284,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error saving electronic:', error);
     }
-  };
+  }, [id, editingElectronic]);
 
-  const handleSelectEquipment = async (data: { equipmentId: string; securitySystemId: string }) => {
+  const handleSelectEquipment = useCallback(async (data: { equipmentId: string; securitySystemId: string }) => {
     try {
       const response = await api.get(`/electronic-security/equipments?installationId=available`);
       if (response.data.success) {
@@ -288,9 +299,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error selecting equipment:', error);
     }
-  };
+  }, []);
 
-  const handleInstallEquipment = async (data: any) => {
+  const handleInstallEquipment = useCallback(async (data: any) => {
     try {
       await api.post('/electronic-security/equipments/assign', {
         equipmentId: selectedEquipmentForInstall?.id,
@@ -312,9 +323,9 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error installing equipment:', error);
     }
-  };
+  }, [id, selectedEquipmentForInstall]);
 
-  const handleDeleteElectronic = async (type: string, electronicId: string) => {
+  const handleDeleteElectronic = useCallback(async (type: string, electronicId: string) => {
     if (!confirm('¿Está seguro de eliminar?')) return;
     try {
       const endpoint = type === 'system' ? '/electronic-security/systems' : '/electronic-security/equipments';
@@ -330,21 +341,34 @@ export default function InstallationDetailPage() {
     } catch (error) {
       console.error('Error deleting electronic:', error);
     }
-  };
+  }, [id]);
 
-  const openElectronicEdit = (type: 'system' | 'equipment' | 'maintenance', item: any) => {
+  const openElectronicEdit = useCallback((type: 'system' | 'equipment' | 'maintenance', item: any) => {
     setEditingElectronic(item);
     setElectronicDialogType(type);
     setElectronicDialogOpen(true);
-  };
+  }, []);
 
-  const openElectronicCreate = (type: 'system' | 'equipment' | 'maintenance') => {
+  const openElectronicCreate = useCallback((type: 'system' | 'equipment' | 'maintenance') => {
     setEditingElectronic(null);
     setElectronicDialogType(type);
     setEquipmentAssignmentStep('select');
     setSelectedEquipmentForInstall(null);
     setElectronicDialogOpen(true);
-  };
+  }, []);
+
+  const totalGuards = useMemo(() => securityPosts.reduce((sum, p) => sum + p.guards.length, 0), [securityPosts]);
+
+  const activeEquipments = useMemo(() => equipments.filter(e => e.status === 'ACTIVE').length, [equipments]);
+  const inRepairEquipments = useMemo(() => equipments.filter(e => e.status === 'IN_REPAIR').length, [equipments]);
+  const activeSystems = useMemo(() => systems.filter(s => s.isActive).length, [systems]);
+  const scheduledMaintenances = useMemo(() => maintenances.filter(m => m.status === 'SCHEDULED').length, [maintenances]);
+
+  const equipmentInvestment = useMemo(() => equipments.reduce((sum, e) => sum + (e.specifications?.cost || 0), 0), [equipments]);
+  const completedMaintenanceCost = useMemo(() => maintenances.filter(m => m.status === 'COMPLETED').reduce((sum, m) => sum + (m.cost || 0), 0), [maintenances]);
+  const scheduledMaintenanceCost = useMemo(() => maintenances.filter(m => m.status === 'SCHEDULED').reduce((sum, m) => sum + (m.cost || 0), 0), [maintenances]);
+
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }), []);
 
   if (isLoading) {
     return (
@@ -421,7 +445,7 @@ export default function InstallationDetailPage() {
         <TabsList>
           <TabsTrigger value="contacts">Contactos ({contacts.length})</TabsTrigger>
           <TabsTrigger value="authorities">Autoridades ({authorities.length})</TabsTrigger>
-          <TabsTrigger value="guards">Vigilantes ({securityPosts.reduce((sum, p) => sum + p.guards.length, 0)})</TabsTrigger>
+          <TabsTrigger value="guards">Vigilantes ({totalGuards})</TabsTrigger>
           <TabsTrigger value="electronic">Seg. Electrónica ({systems.length})</TabsTrigger>
           <TabsTrigger value="studies">Estudios ({securityStudies.length})</TabsTrigger>
         </TabsList>
@@ -465,11 +489,11 @@ export default function InstallationDetailPage() {
                         )}
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingContact(contact); setContactDialogOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingContact(contact); setContactDialogOpen(true); }} aria-label="Editar contacto">
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteContact(contact.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteContact(contact.id)} aria-label="Eliminar contacto">
+                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -520,11 +544,11 @@ export default function InstallationDetailPage() {
                         )}
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingAuthority(authority); setAuthorityDialogOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingAuthority(authority); setAuthorityDialogOpen(true); }} aria-label="Editar autoridad">
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteAuthority(authority.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteAuthority(authority.id)} aria-label="Eliminar autoridad">
+                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -599,7 +623,7 @@ export default function InstallationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{equipments.length}</div>
-                <p className="text-xs text-muted-foreground">{equipments.filter(e => e.status === 'ACTIVE').length} activos</p>
+                <p className="text-xs text-muted-foreground">{activeEquipments} activos</p>
               </CardContent>
             </Card>
 
@@ -609,7 +633,7 @@ export default function InstallationDetailPage() {
                 <Wrench className="h-4 w-4 text-yellow-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{equipments.filter(e => e.status === 'IN_REPAIR').length}</div>
+                <div className="text-2xl font-bold">{inRepairEquipments}</div>
                 <p className="text-xs text-muted-foreground">equipos</p>
               </CardContent>
             </Card>
@@ -621,7 +645,7 @@ export default function InstallationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{systems.length}</div>
-                <p className="text-xs text-muted-foreground">{systems.filter(s => s.isActive).length} activos</p>
+                <p className="text-xs text-muted-foreground">{activeSystems} activos</p>
               </CardContent>
             </Card>
 
@@ -631,7 +655,7 @@ export default function InstallationDetailPage() {
                 <Calendar className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{maintenances.filter(m => m.status === 'SCHEDULED').length}</div>
+                <div className="text-2xl font-bold">{scheduledMaintenances}</div>
                 <p className="text-xs text-muted-foreground">programados</p>
               </CardContent>
             </Card>
@@ -643,7 +667,7 @@ export default function InstallationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-700">
-                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(equipments.reduce((sum, e) => sum + (e.specifications?.cost || 0), 0))}
+                  {currencyFormatter.format(equipmentInvestment)}
                 </div>
                 <p className="text-xs text-green-600">en equipos</p>
               </CardContent>
@@ -659,7 +683,7 @@ export default function InstallationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-xl font-bold text-green-700">
-                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(maintenances.filter(m => m.status === 'COMPLETED').reduce((sum, m) => sum + (m.cost || 0), 0))}
+                  {currencyFormatter.format(completedMaintenanceCost)}
                 </div>
               </CardContent>
             </Card>
@@ -672,20 +696,20 @@ export default function InstallationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-xl font-bold text-orange-700">
-                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(maintenances.filter(m => m.status === 'SCHEDULED').reduce((sum, m) => sum + (m.cost || 0), 0))}
+                  {currencyFormatter.format(scheduledMaintenanceCost)}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button size="sm" onClick={() => openElectronicCreate('system')}>
+            <Button size="sm" className="hidden" onClick={() => openElectronicCreate('system')}>
               <Plus className="mr-2 h-4 w-4" />Nuevo Sistema
             </Button>
-            <Button size="sm" onClick={() => openElectronicCreate('equipment')}>
+            <Button size="sm" className="hidden" onClick={() => openElectronicCreate('equipment')}>
               <Plus className="mr-2 h-4 w-4" />Nuevo Equipo
             </Button>
-            <Button size="sm" onClick={() => openElectronicCreate('maintenance')}>
+            <Button size="sm" className="hidden" onClick={() => openElectronicCreate('maintenance')}>
               <Plus className="mr-2 h-4 w-4" />Nuevo Mantenimiento
             </Button>
           </div>
@@ -709,11 +733,11 @@ export default function InstallationDetailPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('system', system)}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('system', system)} aria-label="Editar sistema">
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteElectronic('system', system.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteElectronic('system', system.id)} aria-label="Eliminar sistema">
+                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -762,17 +786,17 @@ export default function InstallationDetailPage() {
                     <div className="flex items-center gap-3">
                       {equipment.specifications?.cost && (
                         <span className="text-sm font-medium text-blue-600">
-                          {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(equipment.specifications.cost)}
+                          {currencyFormatter.format(equipment.specifications.cost)}
                         </span>
                       )}
                       <Badge className={equipment.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : equipment.status === 'IN_REPAIR' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}>
                         {getStatusText(equipment.status)}
                       </Badge>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('equipment', equipment)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('equipment', equipment)} aria-label="Editar equipo">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteElectronic('equipment', equipment.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteElectronic('equipment', equipment.id)} aria-label="Eliminar equipo">
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -808,14 +832,14 @@ export default function InstallationDetailPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        {m.cost && <p className="text-sm font-medium text-blue-600">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(m.cost)}</p>}
+                        {m.cost && <p className="text-sm font-medium text-blue-600">{currencyFormatter.format(m.cost)}</p>}
                         <p className="text-xs text-muted-foreground">{new Date(m.scheduledDate).toLocaleDateString('es-CO')}</p>
                       </div>
                       <Badge className={m.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' : m.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : m.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}>
                         {getStatusText(m.status)}
                       </Badge>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('maintenance', m)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openElectronicEdit('maintenance', m)} aria-label="Editar mantenimiento">
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -877,14 +901,14 @@ export default function InstallationDetailPage() {
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingStudy(study); setStudyDialogOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingStudy(study); setStudyDialogOpen(true); }} aria-label="Editar estudio">
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleGenerateAI(study.id)} disabled={isGeneratingAI}>
-                          <Bot className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => handleGenerateAI(study.id)} disabled={isGeneratingAI} aria-label="Generar estudio con IA">
+                          <Bot className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteStudy(study.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteStudy(study.id)} aria-label="Eliminar estudio">
+                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -941,7 +965,7 @@ export default function InstallationDetailPage() {
             </DialogTitle>
           </DialogHeader>
           {electronicDialogType === 'system' && (
-            <ElectronicSystemForm system={editingElectronic} installationId={id} onSubmit={(d: any) => handleSaveElectronic('system', d)} onCancel={() => setElectronicDialogOpen(false)} />
+            <ElectronicSystemForm system={editingElectronic} installationId={id} onSubmit={(d: SecuritySystemFormData) => handleSaveElectronic('system', d)} onCancel={() => setElectronicDialogOpen(false)} />
           )}
           {electronicDialogType === 'equipment' && !editingElectronic && equipmentAssignmentStep === 'select' && (
             <EquipmentSelectorForm
@@ -970,7 +994,7 @@ export default function InstallationDetailPage() {
             />
           )}
           {electronicDialogType === 'maintenance' && (
-            <ElectronicMaintenanceForm maintenance={editingElectronic} systems={systems} onSubmit={(d: any) => handleSaveElectronic('maintenance', d)} onCancel={() => setElectronicDialogOpen(false)} />
+            <ElectronicMaintenanceForm maintenance={editingElectronic} systems={systems} onSubmit={(d: MaintenanceFormData) => handleSaveElectronic('maintenance', d)} onCancel={() => setElectronicDialogOpen(false)} />
           )}
         </DialogContent>
       </Dialog>
@@ -980,221 +1004,16 @@ export default function InstallationDetailPage() {
           <DialogHeader>
             <DialogTitle>{editingStudy ? 'Editar' : 'Nuevo'} Estudio de Seguridad</DialogTitle>
           </DialogHeader>
-          <SecurityStudyForm
-            defaultValues={editingStudy || undefined}
-            onSubmit={handleSaveStudy}
-            onCancel={() => setStudyDialogOpen(false)}
-            isLoading={isStudySubmitting}
-          />
+          <Suspense fallback={<FormSkeleton />}>
+            <SecurityStudyForm
+              defaultValues={editingStudy || undefined}
+              onSubmit={handleSaveStudy}
+              onCancel={() => setStudyDialogOpen(false)}
+              isLoading={isStudySubmitting}
+            />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function SecurityStudyForm({
-  defaultValues,
-  onSubmit,
-  onCancel,
-  isLoading,
-}: {
-  defaultValues?: Partial<SecurityStudyFormData>;
-  onSubmit: (data: SecurityStudyFormData) => Promise<void>;
-  onCancel: () => void;
-  isLoading?: boolean;
-}) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecurityStudyFormData>({
-    resolver: zodResolver(securityStudySchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      threatAnalysis: '',
-      vulnerabilityAnalysis: '',
-      recommendations: '',
-      riskLevel: '',
-      status: 'DRAFT',
-      ...defaultValues,
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <label className="text-sm font-medium">Título *</label>
-        <input {...register('title')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm" />
-        {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
-      </div>
-      <div>
-        <label className="text-sm font-medium">Descripción</label>
-        <textarea {...register('description')} rows={2} className="w-full rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Análisis de Amenazas</label>
-        <textarea {...register('threatAnalysis')} rows={4} placeholder="Describa las principales amenazas de seguridad..." className="w-full rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Análisis de Vulnerabilidades</label>
-        <textarea {...register('vulnerabilityAnalysis')} rows={4} placeholder="Identifique las vulnerabilidades potenciales..." className="w-full rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Recomendaciones</label>
-        <textarea {...register('recommendations')} rows={4} placeholder="Proporcione recomendaciones específicas..." className="w-full rounded-md border border-input bg-transparent px-3 text-sm" />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Nivel de Riesgo</label>
-        <select {...register('riskLevel')} className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm">
-          <option value="">Seleccionar</option>
-          <option value="BAJO">Bajo</option>
-          <option value="MEDIO">Medio</option>
-          <option value="ALTO">Alto</option>
-          <option value="CRÍTICO">Crítico</option>
-        </select>
-      </div>
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Guardando...' : defaultValues?.title ? 'Actualizar' : 'Crear'}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function ElectronicSystemForm({ system, installationId, onSubmit, onCancel }: { system?: any; installationId?: string; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SecuritySystemFormData>({
-    resolver: zodResolver(securitySystemSchema),
-    defaultValues: {
-      name: system?.name || '',
-      type: system?.type || '',
-      description: system?.description || '',
-      installationDate: system?.installationDate ? new Date(system.installationDate).toISOString().split('T')[0] : '',
-      isActive: system?.isActive ?? true,
-      installationId: system?.installationId || installationId || '',
-    },
-  });
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label>Tipo de Sistema *</Label>
-        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('type')}>
-          <option value="">Seleccionar tipo</option>
-          <option value="CCTV">CCTV - Circuito Cerrado de Televisión</option>
-          <option value="CONTROL_ACCESO">Control de Acceso</option>
-          <option value="INTRUSION">Intrusión / Alarmas</option>
-          <option value="FIRE">Detección de Incendio</option>
-          <option value="VIDEOWALL">Videowall</option>
-          <option value="CITOFONIA">Citofonía</option>
-          <option value="RONDAS">Rondas</option>
-          <option value="OTRO">Otro</option>
-        </select>
-        {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Nombre del Sistema</Label>
-          <Input {...register('name')} placeholder="Ej: CCTV Principal" />
-          {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label>Fecha de Instalación</Label>
-          <Input type="date" {...register('installationDate')} />
-        </div>
-      </div>
-      <div>
-        <Label>Descripción</Label>
-        <Textarea {...register('description')} rows={3} placeholder="Descripción detallada del sistema..." />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
-  );
-}
-
-function ElectronicMaintenanceForm({ maintenance, systems, onSubmit, onCancel }: { maintenance?: any; systems: any[]; onSubmit: (data: any) => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<MaintenanceFormData>({
-    resolver: zodResolver(maintenanceSchema),
-    defaultValues: {
-      title: maintenance?.title || '',
-      type: maintenance?.type || '',
-      frequency: maintenance?.frequency || '',
-      status: (maintenance?.status as any) || 'SCHEDULED',
-      scheduledDate: maintenance?.scheduledDate ? new Date(maintenance.scheduledDate).toISOString().split('T')[0] : '',
-      completedDate: maintenance?.completedDate ? new Date(maintenance.completedDate).toISOString().split('T')[0] : '',
-      cost: maintenance?.cost,
-      provider: maintenance?.provider || '',
-      notes: '',
-      securitySystemId: maintenance?.securitySystem?.id || systems[0]?.id || '',
-      equipmentId: undefined,
-    },
-  });
-
-  const status = watch('status');
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label>Título *</Label>
-        <Input {...register('title')} />
-        {errors.title && <p className="text-sm text-red-500">{errors.title.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo *</Label>
-          <Input {...register('type')} placeholder="Preventivo, Correctivo" />
-          {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
-        </div>
-        <div>
-          <Label>Frecuencia *</Label>
-          <Input {...register('frequency')} placeholder="Mensual, Trimestral" />
-          {errors.frequency && <p className="text-sm text-red-500">{errors.frequency.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Fecha Programada *</Label>
-          <Input type="date" {...register('scheduledDate')} />
-          {errors.scheduledDate && <p className="text-sm text-red-500">{errors.scheduledDate.message}</p>}
-        </div>
-        <div>
-          <Label>Estado</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('status')}>
-            <option value="SCHEDULED">Programado</option>
-            <option value="IN_PROGRESS">En Progreso</option>
-            <option value="COMPLETED">Completado</option>
-            <option value="CANCELLED">Cancelado</option>
-          </select>
-        </div>
-      </div>
-      {status === 'COMPLETED' && (
-        <div>
-          <Label>Fecha de Completado</Label>
-          <Input type="date" {...register('completedDate')} />
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Costo (COP)</Label>
-          <Input type="number" {...register('cost')} placeholder="0" />
-        </div>
-        <div>
-          <Label>Proveedor</Label>
-          <Input {...register('provider')} />
-        </div>
-      </div>
-      <div>
-        <Label>Sistema</Label>
-        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('securitySystemId')}>
-          <option value="">Seleccionar</option>
-          {systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">Guardar</Button>
-      </div>
-    </form>
   );
 }

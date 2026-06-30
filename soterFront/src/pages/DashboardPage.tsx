@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +81,21 @@ export default function DashboardPage() {
     fetchData();
   }, [user?.role]);
 
+  const role = user?.role || 'VIGILANTE';
+
+  const closedIncidents = useMemo(() => {
+    return (stats?.totalIncidents || 0) - (stats?.openIncidents || 0);
+  }, [stats?.totalIncidents, stats?.openIncidents]);
+
+  const closureRate = useMemo(() => {
+    if (!stats?.totalIncidents) return 0;
+    return Math.round(((stats.totalIncidents - stats.openIncidents) / stats.totalIncidents) * 100);
+  }, [stats?.totalIncidents, stats?.openIncidents]);
+
+  const criticalHighIncidents = useMemo(() => {
+    return stats?.recentIncidents?.filter(i => i.priority === 'CRITICAL' || i.priority === 'HIGH') || [];
+  }, [stats?.recentIncidents]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -88,8 +103,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const role = user?.role || 'VIGILANTE';
 
   return (
     <div className="space-y-6">
@@ -120,14 +133,14 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Casos Cerrados"
-            value={(stats?.totalIncidents || 0) - (stats?.openIncidents || 0)}
+            value={closedIncidents}
             subtitle="histórico total"
             icon={<CheckCircle className="h-4 w-4 text-green-600" />}
             color="bg-green-100"
           />
           <StatCard
             title="Tasa de Cierre"
-            value={stats?.totalIncidents ? Math.round(((stats.totalIncidents - stats.openIncidents) / stats.totalIncidents) * 100) : 0}
+            value={closureRate}
             subtitle="%"
             icon={<TrendingUp className="h-4 w-4 text-purple-600" />}
             color="bg-purple-100"
@@ -442,9 +455,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-48 overflow-y-auto">
-                {stats?.recentIncidents?.filter(i => i.priority === 'CRITICAL' || i.priority === 'HIGH').length ? (
-                  stats.recentIncidents
-                    .filter(i => i.priority === 'CRITICAL' || i.priority === 'HIGH')
+                {criticalHighIncidents.length ? (
+                  criticalHighIncidents
                     .slice(0, 4)
                     .map((incident) => (
                       <div key={incident.id} className="flex items-start gap-2 p-2 border-l-4 border-red-500 bg-red-50 rounded-r-lg">
