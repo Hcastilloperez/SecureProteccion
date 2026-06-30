@@ -45,6 +45,18 @@ class IncidentController {
                     { description: { contains: String(req.query.search), mode: 'insensitive' } },
                 ];
             }
+            const userRole = req.user?.role;
+            const userId = req.user?.userId;
+            const coordinatorRoles = [
+                'COORDINADOR_FISICA',
+                'COORDINADOR_ELECTRONICA',
+                'COORDINADOR_INVESTIGACIONES',
+                'COORDINADOR_ADMINISTRATIVO',
+                'COORDINADOR_ACCIONES_LOCALITATIVAS',
+            ];
+            if (userRole && coordinatorRoles.includes(userRole) && userId) {
+                where.assignedToId = userId;
+            }
             const [data, total] = await Promise.all([
                 database_1.default.incident.findMany({
                     where,

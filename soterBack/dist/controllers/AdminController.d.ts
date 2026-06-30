@@ -22,6 +22,9 @@ export declare class AdminController {
     deleteEquipmentType(req: Request, res: Response): Promise<void>;
     getDashboardStats(req: Request, res: Response): Promise<void>;
     getMaintenanceStats(req: Request, res: Response): Promise<void>;
+    getPermissionDefinitions(req: Request, res: Response): Promise<void>;
+    createPermissionDefinition(req: Request, res: Response): Promise<void>;
+    deletePermissionDefinition(req: Request, res: Response): Promise<void>;
 }
 export declare const adminController: AdminController;
 //# sourceMappingURL=AdminController.d.ts.map

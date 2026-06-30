@@ -18,7 +18,7 @@ class AuthController {
             }
             const user = await database_1.default.user.findUnique({
                 where: { email },
-                include: { installation: true },
+                include: { installation: true, roleData: true },
             });
             if (!user) {
                 res.status(401).json({ success: false, error: 'Credenciales inválidas' });
@@ -38,6 +38,18 @@ class AuthController {
                 email: user.email,
                 role: user.role,
             }, config_1.config.jwt.secret, { expiresIn: config_1.config.jwt.expiresIn });
+            let permissions = user.roleData?.permissions || {};
+            if (!user.roleData && user.role) {
+                const roleByName = await database_1.default.role.findUnique({
+                    where: { name: user.role },
+                });
+                if (roleByName) {
+                    permissions = roleByName.permissions || {};
+                }
+            }
+            if (user.role === 'ADMIN' || permissions.all === true) {
+                permissions.all = true;
+            }
             res.json({
                 success: true,
                 data: {
@@ -48,6 +60,7 @@ class AuthController {
                         name: user.name,
                         lastName: user.lastName,
                         role: user.role,
+                        permissions,
                         installation: user.installation,
                     },
                 },

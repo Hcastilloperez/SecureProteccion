@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/verify';
 export declare class IncidentController {
-    getAll(req: Request, res: Response): Promise<void>;
+    getAll(req: AuthenticatedRequest, res: Response): Promise<void>;
     getById(req: Request, res: Response): Promise<void>;
     create(req: AuthenticatedRequest, res: Response): Promise<void>;
     update(req: AuthenticatedRequest, res: Response): Promise<void>;

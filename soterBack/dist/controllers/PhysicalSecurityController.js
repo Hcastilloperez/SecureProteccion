@@ -37,8 +37,35 @@ class PhysicalSecurityController {
     async createSecurityGuard(req, res) {
         try {
             const { documentType, documentNumber, name, lastName, phone, email, position, securityPostId, schedule, observations, installationId, userId } = req.body;
+            console.log('[createSecurityGuard] Body recibido:', JSON.stringify(req.body));
+            console.log('[createSecurityGuard] Campos individually:', {
+                documentType: `"${documentType}"`,
+                documentNumber: `"${documentNumber}"`,
+                name: `"${name}"`,
+                lastName: `"${lastName}"`,
+                phone: `"${phone}"`,
+                position: `"${position}"`,
+                installationId: `"${installationId}"`,
+            });
+            console.log('[createSecurityGuard] user:', req.user?.role);
             if (!documentType || !documentNumber || !name || !lastName || !phone || !position || !installationId) {
-                res.status(400).json({ success: false, error: 'Campos requeridos faltantes' });
+                const missing = [];
+                if (!documentType)
+                    missing.push('documentType');
+                if (!documentNumber)
+                    missing.push('documentNumber');
+                if (!name)
+                    missing.push('name');
+                if (!lastName)
+                    missing.push('lastName');
+                if (!phone)
+                    missing.push('phone');
+                if (!position)
+                    missing.push('position');
+                if (!installationId)
+                    missing.push('installationId');
+                console.log('[createSecurityGuard] Campos faltantes:', missing);
+                res.status(400).json({ success: false, error: `Campos requeridos faltantes: ${missing.join(', ')}` });
                 return;
             }
             const existingGuard = await database_1.default.securityGuard.findUnique({

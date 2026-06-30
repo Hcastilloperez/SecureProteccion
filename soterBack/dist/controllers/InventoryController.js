@@ -99,7 +99,7 @@ class InventoryController {
     }
     async getEquipments(req, res) {
         try {
-            const { installationId, contractId, status } = req.query;
+            const { installationId, contractId, status, available } = req.query;
             const where = {};
             if (installationId)
                 where.installationId = String(installationId);
@@ -107,6 +107,8 @@ class InventoryController {
                 where.investmentContractId = String(contractId);
             if (status)
                 where.status = String(status);
+            if (available === 'true')
+                where.securitySystemId = null;
             const equipments = await database_1.default.equipment.findMany({
                 where,
                 include: {
@@ -237,6 +239,9 @@ class InventoryController {
         try {
             const { id } = req.params;
             const { name, type, brand, model, serialNumber, status, location, ipAddress, macAddress, firmwareVersion, expirationDate, notes, specifications, purchaseDate, investmentContractId, installationId, securitySystemId } = req.body;
+            const normalizedInstallationId = installationId === '' ? null : installationId;
+            const normalizedSecuritySystemId = securitySystemId === '' ? null : securitySystemId;
+            const normalizedInvestmentContractId = investmentContractId === '' ? null : investmentContractId;
             const existing = await database_1.default.equipment.findUnique({ where: { id } });
             const oldInstallationId = existing?.installationId;
             const oldSecuritySystemId = existing?.securitySystemId;
@@ -257,9 +262,9 @@ class InventoryController {
                     ...(notes !== undefined && { notes }),
                     ...(specifications !== undefined && { specifications }),
                     ...(purchaseDate !== undefined && { purchaseDate: purchaseDate ? new Date(purchaseDate) : null }),
-                    ...(investmentContractId !== undefined && { investmentContractId }),
-                    ...(installationId !== undefined && { installationId }),
-                    ...(securitySystemId !== undefined && { securitySystemId }),
+                    ...(normalizedInvestmentContractId !== undefined && { investmentContractId: normalizedInvestmentContractId }),
+                    ...(normalizedInstallationId !== undefined && { installationId: normalizedInstallationId }),
+                    ...(normalizedSecuritySystemId !== undefined && { securitySystemId: normalizedSecuritySystemId }),
                 },
                 include: {
                     investmentContract: true,
@@ -276,14 +281,14 @@ class InventoryController {
                     },
                 },
             });
-            if (installationId && (oldInstallationId !== installationId || oldSecuritySystemId !== securitySystemId)) {
+            if (normalizedInstallationId && (oldInstallationId !== normalizedInstallationId || oldSecuritySystemId !== normalizedSecuritySystemId)) {
                 await database_1.default.equipmentMovement.create({
                     data: {
                         equipmentId: id,
                         fromInstallationId: oldInstallationId,
-                        toInstallationId: installationId,
+                        toInstallationId: normalizedInstallationId,
                         fromSecuritySystemId: oldSecuritySystemId,
-                        toSecuritySystemId: securitySystemId,
+                        toSecuritySystemId: normalizedSecuritySystemId,
                         movementDate: new Date(),
                         status: 'MOVED',
                         reason: 'Actualización de ubicación',
